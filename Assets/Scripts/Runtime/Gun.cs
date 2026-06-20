@@ -6,17 +6,13 @@ public class Gun : MonoBehaviour
     public PlayerController playerController;
     private float lastFireTime = 0f;
 
-    private void Update()
+    public void Fire()
     {
-        if (Input.GetButtonDown("Fire1") && Time.time >= lastFireTime + gunData.fireRate)
+        if (gunData == null || gunData.bulletPrefab == null || Time.time < lastFireTime + gunData.fireRate)
         {
-            Fire();
-            lastFireTime = Time.time;
+            Debug.LogWarning("GunData or bulletPrefab is not assigned.");
+            return;
         }
-    }
-
-    void Fire()
-    {
         // Instantiate the bullet prefab at the gun's position and rotation
         GameObject bullet = Instantiate(gunData.bulletPrefab, transform.position, transform.rotation);
         // Add force to the bullet to propel it forward
@@ -24,5 +20,7 @@ public class Gun : MonoBehaviour
         rb.AddForce(transform.right * gunData.range, ForceMode.Impulse);
 
         playerController?.rb.AddForce(-transform.right * gunData.recoilForce, ForceMode.Impulse);
+
+        lastFireTime = Time.time;
     }
 }

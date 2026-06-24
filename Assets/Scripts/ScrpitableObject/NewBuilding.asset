@@ -19,7 +19,8 @@ MonoBehaviour:
   prefab: {fileID: 0}
   size: {x: 1, y: 1}
   category: 0
-  availableRecipes: []
+  availableRecipes:
+  - {fileID: 11400000, guid: afef99daf6b1892499ed2eedbdb0880a, type: 2}
   processingTime: 0
   maxInputBuffer: 0
   maxOutputBuffer: 0

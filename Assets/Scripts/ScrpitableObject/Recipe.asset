@@ -14,7 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::RecipeDataSO
   name: NewRecipe
   inputs:
-  - name: {fileID: 0}
-    amount: 0
+  - item: {fileID: 11400000, guid: aadb41e740117b64599e9ff9bf3da1c8, type: 2}
+    amount: 1
+  - item: {fileID: 11400000, guid: aadb41e740117b64599e9ff9bf3da1c8, type: 2}
+    amount: 1
   outputs: []
   craftTime: 0

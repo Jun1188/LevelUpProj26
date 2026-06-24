@@ -5,7 +5,7 @@ using UnityEngine;
 public class  Ingredient
 {
     public ItemDataSO item;
-    public int amount;
+    public int amount = 1;
 }
 
 [CreateAssetMenu(fileName = "New_Recipe", menuName = "ScriptableObjects/Recipe")]

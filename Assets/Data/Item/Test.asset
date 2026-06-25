@@ -10,8 +10,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 971e30e0b1b4991408df8b8185b62e8a, type: 3}
-  m_Name: IronIngot
+  m_Name: Test
   m_EditorClassIdentifier: Assembly-CSharp::ItemDataSO
-  name: IronIngot
-  icon: {fileID: 10907, guid: 0000000000000000f000000000000000, type: 0}
-  type: 1
+  name: abcd
+  icon: {fileID: -17470339, guid: 6cc7b23bf440b764893f0618ca3b9932, type: 3}
+  type: 0

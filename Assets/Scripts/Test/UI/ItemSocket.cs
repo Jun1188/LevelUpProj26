@@ -1,25 +1,56 @@
 using UnityEngine;
 using UnityEngine.UI;
-using System.Collections;
-
-using System.Collections.Generic;
-using System;
+using TMPro;
 
 public class ItemSocket : MonoBehaviour
 {
+    [Header("UI Components")]
+    [SerializeField] private Image it_sprite;       
+    [SerializeField] private TextMeshProUGUI it_counter;       
+    
+    [Header("Current Data")]
+    [SerializeField] private ItemDataSO itemDataSO; // 현재 이 칸에 들어있는 아이템 정보
 
-    [SerializeField]
-    Image it_sprite;
-    [SerializeField]
-    ItemDataSO itemDataSO;
-
-    public void SetItem(ItemDataSO item)
+    public void ClearSlot() 
     {
-        itemDataSO = item;
-        it_sprite.sprite = item.icon;
+        itemDataSO = null; 
+        
+        if (it_sprite != null) 
+        {
+            it_sprite.sprite = null; 
+            it_sprite.enabled = false; 
+        }
+
+        if (it_counter != null) 
+        {
+            it_counter.text = ""; 
+        }
     }
-    public ItemDataSO GetItem()
+
+    public void SetItem(ItemDataSO item, int amount) 
     {
-        return itemDataSO;
+        if (item == null || amount <= 0) 
+        {
+            ClearSlot(); 
+            return; 
+        }
+
+        itemDataSO = item; 
+        
+        if (it_sprite != null) 
+        {
+            it_sprite.sprite = item.icon; 
+            it_sprite.enabled = true;      
+        }
+
+        if (it_counter != null) 
+        {
+            it_counter.text = (amount > 1) ? amount.ToString() : ""; 
+        }
+    }
+
+    public ItemDataSO GetItem() 
+    {
+        return itemDataSO; 
     }
 }

@@ -39,6 +39,7 @@ public class PathfindingState : IEntityState
 {
     public void FindPath(Entity entity, IInteractable target)
     {
+        
         // 실제 A* 길찾기 호출
         entity.FindByAstar(target);
     }
@@ -57,7 +58,7 @@ public abstract class Entity : MonoBehaviour, IInteractable //abstract class로 
     public float moveSpeed = 5f;
 
     // 길찾기 및 이동을 위한 변수
-    protected List<Node> currentPath;
+    protected List<Node> currentPath = null;
     protected Coroutine moveCoroutine;
 
     [SerializeField] protected float maxHealth = 100f;
@@ -75,7 +76,7 @@ public abstract class Entity : MonoBehaviour, IInteractable //abstract class로 
     public IEntityState CurrentState => currentState;
 
 
-
+    [SerializeField] private IInteractable target = null;
 
 
 
@@ -125,6 +126,8 @@ public abstract class Entity : MonoBehaviour, IInteractable //abstract class로 
     // 상태 패턴을 위임하는 FindPath 인터페이스
     public virtual void FindPath(IInteractable target) 
     { 
+        if(this.target != null) target = this.target;
+
         if (currentState != null)
         {
             currentState.FindPath(this, target);
@@ -201,6 +204,8 @@ public abstract class Entity : MonoBehaviour, IInteractable //abstract class로 
         
     }
 
+
+
     // 도착 후 부모 노드를 역추적하여 실제 경로를 리스트로 만드는 함수
     
     protected virtual void RetracePath(Node startNode, Node endNode)
@@ -225,6 +230,9 @@ public abstract class Entity : MonoBehaviour, IInteractable //abstract class로 
         }
         moveCoroutine = StartCoroutine(FollowPath());
     }
+
+
+
 
     // 찾은 경로를 따라 실제 오브젝트를 이동시키는 코루틴
     protected virtual IEnumerator FollowPath()

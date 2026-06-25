@@ -63,7 +63,8 @@ public class Gun : MonoBehaviour
         {
             Vector3 recoilDir = -playerController.playerCamera.forward;
 
-            // recoilDir.y = 0f; recoilDir.Normalize();
+            recoilDir.y = 0f; 
+            recoilDir.Normalize();
 
             playerController.AddRecoil(recoilDir, gunData.recoilForce);
         }

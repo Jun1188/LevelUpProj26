@@ -1,0 +1,403 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using UnityEngine;
+
+// ================================================================
+//  BuildingSimulation.cs
+//  건물 시뮬레이션 구동 — Dirty Queue + 벨트 최적화 + 행동 구현
+//
+//  포함:
+//    SimulationSystem      — 변화 있는 건물만 틱 (Dirty Queue)
+//    BeltSegment           — 연속 벨트를 하나의 유닛으로 처리
+//    BeltSegmentManager    — 세그먼트 생성/병합/분리
+//    IBuildingBehavior     — 건물 행동 인터페이스
+//    MinerBehavior         — 자원 채굴 (주기적 아이템 생산)
+//    BeltBehavior          — 컨베이어 벨트 (세그먼트 위임 or 단독)
+//    AssemblerBehavior     — 재료 수집 → 조합 → 출력
+//    StorageBehavior       — 대용량 버퍼, 요청 시 출력
+//    BuildingBehaviorFactory — 카테고리별 행동 생성
+// ================================================================
+
+// ─── 시뮬레이션 시스템 ─────────────────────────────────────────
+
+/// <summary>
+/// Dirty Queue 기반 이벤트 주도 시뮬레이션.
+///
+/// 핵심 아이디어:
+///   건물 10,000개 중 100개만 현재 활성 → 100번만 Tick() 호출.
+///   아이템 수신, 생산 완료 등 "변화"가 생긴 건물만 큐에 넣는다.
+///   큐에 없는 건물은 완전 무시.
+///
+/// MarkDirty 호출 시점:
+///   - 건물이 아이템을 수신했을 때  (TryAddInput 성공)
+///   - 건물의 내부 타이머가 돌고 있을 때  (Tick 내에서 재등록)
+///   - 건물이 처음 배치됐을 때
+/// </summary>
+public class SimulationSystem : MonoBehaviour
+{
+    public static SimulationSystem Instance { get; private set; }
+
+    [Tooltip("초당 틱 수. 10이면 0.1초마다 처리.")]
+    [SerializeField] float _tps = 10f;
+
+    readonly Queue<BuildingInstance>   _queue = new();
+    readonly HashSet<BuildingInstance> _inQ   = new(); // 중복 등록 방지 O(1)
+
+    float _interval, _timer;
+
+    void Awake()
+    {
+        if (Instance != null) { Destroy(gameObject); return; }
+        Instance  = this;
+        _interval = 1f / Mathf.Max(0.1f, _tps);
+    }
+
+    /// <summary>건물 배치 시 호출. 초기 틱을 예약한다.</summary>
+    public void Register(BuildingInstance b) => MarkDirty(b);
+
+    /// <summary>건물 제거 시 호출.</summary>
+    public void Unregister(BuildingInstance b) => _inQ.Remove(b);
+
+    /// <summary>
+    /// 건물을 다음 틱 처리 대상에 추가. O(1).
+    /// HashSet으로 중복 호출을 차단하므로 마음껏 호출해도 안전하다.
+    /// </summary>
+    public void MarkDirty(BuildingInstance b)
+    {
+        if (b == null) return;
+        if (_inQ.Add(b)) _queue.Enqueue(b);
+    }
+
+    void Update()
+    {
+        _timer += Time.deltaTime;
+        if (_timer < _interval) return;
+        _timer -= _interval;
+        RunTick();
+    }
+
+    void RunTick()
+    {
+        // 틱 시작 시점의 큐 크기만큼만 처리.
+        // 이번 틱에서 새로 MarkDirty된 건물은 다음 틱에 처리된다.
+        int count = _queue.Count;
+        for (int i = 0; i < count; i++)
+        {
+            var b = _queue.Dequeue();
+            _inQ.Remove(b);
+            if (b == null || !b.gameObject.activeSelf) continue;
+            b.Tick(_interval);
+        }
+    }
+}
+
+// ─── 벨트 세그먼트 ──────────────────────────────────────────────
+
+/// <summary>
+/// 연속으로 연결된 벨트 체인을 하나의 유닛으로 처리.
+///
+/// 문제: 벨트 100개 체인 → 100번 Tick, 100번 MarkDirty
+/// 해결: 100개를 BeltSegment 1개로 통합 → 1번 Tick
+///
+/// 아이템 위치를 float 값으로 추적:
+///   0.0 = 세그먼트 입구
+///   N   = 세그먼트 출구 도달 (N = 벨트 수)
+///
+/// 앞에서부터 처리하면 앞 아이템이 뒤 아이템의 진입을 막는
+/// 실제 컨베이어 벨트 물리를 재현할 수 있다.
+/// </summary>
+public class BeltSegment
+{
+    public readonly List<BuildingInstance> Belts = new();
+    public float SpeedTilesPerSec = 2f;
+
+    // (아이템, 세그먼트 내 float 위치)
+    readonly List<(ItemDataSO item, float pos)> _items = new();
+
+    public bool                                   HasItems => _items.Count > 0;
+    public IReadOnlyList<(ItemDataSO, float pos)> Items    => _items;
+    public int                                    BeltCount => Belts.Count;
+
+    public void AddItem(ItemDataSO item) => _items.Add((item, 0f));
+
+    /// <summary>
+    /// 아이템 이동 처리. BeltBehavior.Tick()에서 호출.
+    /// 뒤에서 앞으로 순회해야 앞 아이템 블로킹을 올바르게 처리한다.
+    /// </summary>
+    public void Tick(float dt)
+    {
+        float advance = SpeedTilesPerSec * dt;
+
+        for (int i = _items.Count - 1; i >= 0; i--)
+        {
+            var (item, pos) = _items[i];
+            float newPos = pos + advance;
+
+            // 바로 앞 아이템과의 최소 간격 유지 (0.5 타일)
+            if (i + 1 < _items.Count)
+                newPos = Mathf.Min(newPos, _items[i + 1].pos - 0.5f);
+
+            // 출구 도달 → 다음 건물로 전달 시도
+            if (newPos >= BeltCount)
+            {
+                var exitBelt = Belts[^1];
+                bool sent = false;
+                foreach (var conn in exitBelt.OutputConnections)
+                {
+                    if (!conn.To.Inventory.TryAddInput(item)) continue;
+                    SimulationSystem.Instance.MarkDirty(conn.To);
+                    _items.RemoveAt(i);
+                    sent = true;
+                    break;
+                }
+                if (!sent) _items[i] = (item, BeltCount - 0.01f); // 출구 전 대기
+            }
+            else
+            {
+                _items[i] = (item, newPos);
+            }
+        }
+
+        // 아이템이 남아 있으면 이동을 계속해야 하므로 재등록
+        if (HasItems)
+            foreach (var b in Belts)
+                SimulationSystem.Instance.MarkDirty(b);
+    }
+}
+
+
+
+// ─── 행동 인터페이스 ────────────────────────────────────────────
+
+public interface IBuildingBehavior
+{
+    /// <summary>SimulationSystem이 매 틱마다 호출.</summary>
+    void Tick(float dt);
+
+    /// <summary>
+    /// BuildingGraph.OnPlaced() 완료 후 1회 호출.
+    /// 이 시점에서는 InputConnections / OutputConnections가 모두 확정되어 있다.
+    /// 자원 조회, 레시피 결정 등 연결 기반 초기화에 사용.
+    /// </summary>
+    void OnAfterPlaced();
+}
+
+// ─── 채굴기 행동 ────────────────────────────────────────────────
+
+/// <summary>
+/// 주기적으로 아이템을 생산해 출력 포트로 Push.
+/// 어떤 아이템을 채굴할지는 OnAfterPlaced에서 외부 주입을 통해 결정.
+/// (ResourceGrid 같은 공간 시스템은 이 파일의 관심사가 아님)
+/// </summary>
+public class MinerBehavior : IBuildingBehavior
+{
+    readonly BuildingInstance _b;
+    ItemDataSO _target;
+    float      _timer;
+
+    public MinerBehavior(BuildingInstance b) => _b = b;
+
+    // 외부(ResourceGrid 등)에서 OnAfterPlaced 이후 주입
+    public void SetTarget(ItemDataSO item) => _target = item;
+
+    public void OnAfterPlaced()
+    {
+        // 외부 서비스가 주입되어 있으면 사용
+        // 없으면 SetTarget()으로 직접 설정
+        if (MiningService.GetItemAt != null)
+            _target = MiningService.GetItemAt(_b.Origin);
+    }
+
+    public void Tick(float dt)
+    {
+        if (_target == null) return;
+
+        _timer += dt;
+        if (_timer < _b.Data.processingTime)
+        {
+            SimulationSystem.Instance.MarkDirty(_b); // 타이머 진행 중 → 재등록
+            return;
+        }
+        _timer -= _b.Data.processingTime;
+
+        // 직접 Push 실패 시 자체 출력 버퍼에 보관 (벨트가 꽉 찬 경우)
+        if (!_b.TryPushOutput(_target))
+            _b.Inventory.TryAddOutput(_target);
+
+        SimulationSystem.Instance.MarkDirty(_b); // 다음 채굴 예약
+    }
+}
+
+/// <summary>
+/// Miner가 채굴 대상을 결정할 때 사용하는 서비스 포인트.
+/// ResourceGrid가 있다면 Awake에서 아래 델리게이트를 등록하면 된다.
+/// 없으면 MinerBehavior.SetTarget()을 직접 호출.
+/// </summary>
+public static class MiningService
+{
+    public static Func<Vector2Int, ItemDataSO> GetItemAt;
+}
+
+// ─── 벨트 행동 ──────────────────────────────────────────────────
+
+/// <summary>
+/// 컨베이어 벨트. BeltSegment에 속하면 세그먼트가 처리하고 여기서는 위임만.
+/// 세그먼트에 속하지 않은 단독 벨트는 직접 Push.
+/// </summary>
+// --- BeltBehavior 클래스 전체 교체 ---
+
+public class BeltBehavior : IBuildingBehavior
+{
+    readonly BuildingInstance _b;
+    public BeltBehavior(BuildingInstance b) => _b = b;
+    public void OnAfterPlaced() { }
+
+    public void Tick(float dt)
+    {
+        var seg = BeltSegmentManager.Instance?.GetSegment(_b);
+
+        // 💡 [핵심 수정 부분] 
+        // 1. 내 입력 버퍼(Input)에 들어온 광석을 꺼내서 물리적인 컨베이어 벨트(Segment) 위로 올린다.
+        foreach (var (item, count) in _b.Inventory.InputSnapshot)
+        {
+            if (seg != null)
+            {
+                // 연속된 벨트 체인이면 세그먼트에 추가
+                for (int i = 0; i < count; i++) seg.AddItem(item);
+                _b.Inventory.TryConsumeInput(item, count);
+            }
+            else
+            {
+                // 세그먼트가 없는 단독 벨트일 경우, 다음 건물로 즉시 푸시 시도
+                for (int i = 0; i < count; i++)
+                {
+                    if (_b.TryPushOutput(item))
+                        _b.Inventory.TryConsumeInput(item, 1);
+                }
+            }
+        }
+
+        // 2. 물리 벨트 이동 시뮬레이션 
+        // (세그먼트에 속한 벨트 100개 중 1번째 벨트가 대표로 1번만 계산함 - 최적화)
+        if (seg != null && seg.Belts.Count > 0 && seg.Belts[0] == _b)
+        {
+            seg.Tick(dt);
+        }
+    }
+}
+
+// ─── 조합기 행동 ────────────────────────────────────────────────
+
+/// <summary>
+/// 입력 버퍼에 재료가 모이면 조합 시작 → 완료 후 출력 버퍼로.
+/// 조합 중에는 MarkDirty로 계속 재등록해 타이머를 진행시킨다.
+/// 재료가 없으면 Dirty 등록 안 함 → 재료 도착(TryAddInput 성공) 시 재등록됨.
+/// </summary>
+public class AssemblerBehavior : IBuildingBehavior
+{
+    readonly BuildingInstance _b;
+    RecipeDataSO _recipe;
+    float        _timer;
+    bool         _crafting;
+
+    public AssemblerBehavior(BuildingInstance b)
+    {
+        _b      = b;
+        _recipe = b.Data.availableRecipes?.FirstOrDefault();
+    }
+
+    public void SetRecipe(RecipeDataSO r) => _recipe = r;
+
+    public void OnAfterPlaced() { }
+
+    public void Tick(float dt)
+    {
+        if (_recipe == null) return;
+
+        if (!_crafting)
+        {
+            if (!HasIngredients()) return; // 재료 없음 → Dirty 등록 안 함
+            ConsumeIngredients();
+            _crafting = true;
+            _timer    = 0f;
+            SimulationSystem.Instance.MarkDirty(_b);
+        }
+        else
+        {
+            _timer += dt;
+            if (_timer < _recipe.craftTime)
+            {
+                SimulationSystem.Instance.MarkDirty(_b); // 조합 진행 중
+                return;
+            }
+
+            // 조합 완료
+            foreach (var o in _recipe.outputs)
+                _b.Inventory.TryAddOutput(o.item, o.amount);
+            _crafting = false;
+
+            // 출력 Push 시도
+            foreach (var (item, _) in _b.Inventory.OutputSnapshot)
+                if (_b.TryPushOutput(item))
+                    _b.Inventory.TryConsumeOutput(item);
+
+            // 재료가 이미 있으면 즉시 다음 조합 예약
+            if (HasIngredients())
+                SimulationSystem.Instance.MarkDirty(_b);
+        }
+    }
+
+    bool HasIngredients()
+    {
+        foreach (var i in _recipe.inputs)
+            if (_b.Inventory.InputAmount(i.item) < i.amount) return false;
+        return true;
+    }
+
+    void ConsumeIngredients()
+    {
+        foreach (var i in _recipe.inputs)
+            _b.Inventory.TryConsumeInput(i.item, i.amount);
+    }
+}
+
+// ─── 저장소 행동 ────────────────────────────────────────────────
+
+/// <summary>
+/// 큰 버퍼를 가진 저장소. 입력을 받고, 요청 시(연결된 건물이 Pull) 출력.
+/// 특별한 처리 없이 TryPushOutput만 주기적으로 시도.
+/// </summary>
+public class StorageBehavior : IBuildingBehavior
+{
+    readonly BuildingInstance _b;
+    public StorageBehavior(BuildingInstance b) => _b = b;
+    public void OnAfterPlaced() { }
+
+    public void Tick(float dt)
+    {
+        if (!_b.Inventory.HasOutput) return;
+        foreach (var (item, _) in _b.Inventory.OutputSnapshot)
+            if (_b.TryPushOutput(item))
+                _b.Inventory.TryConsumeOutput(item);
+    }
+}
+
+// ─── 행동 팩토리 ────────────────────────────────────────────────
+
+/// <summary>
+/// BuildingCategory → IBuildingBehavior 생성.
+/// 새 카테고리/행동을 추가할 때 여기에만 케이스를 추가하면 된다.
+/// </summary>
+public static class BuildingBehaviorFactory
+{
+    public static IBuildingBehavior Create(BuildingCategory cat, BuildingInstance b) =>
+        cat switch
+        {
+            BuildingCategory.Producer  => new MinerBehavior(b),
+            BuildingCategory.Transport => new BeltBehavior(b),
+            BuildingCategory.Processor => new AssemblerBehavior(b),
+            BuildingCategory.Storage   => new StorageBehavior(b),
+            _                          => null
+        };
+}

@@ -5,6 +5,11 @@ public class PlayerController : Entity
 {
     [Header("Gun Settings")]
     public Gun gun;
+    private bool isFiringPressed = false;
+    
+    [Header("Advanced Recoil Settings")]
+    public float maxRecoilVelocity = 3f; // 반동으로 인해 뒤로 밀리는 최대 속도 제한
+
     [Header("Player Settings")]
     public float jumpForce = 10f;
     public Rigidbody rb;
@@ -32,6 +37,7 @@ public class PlayerController : Entity
         base.Update();
         HandleCamera();
         HandleJump();
+        HandleShooting();
     }
 
     private void FixedUpdate()
@@ -60,12 +66,23 @@ public class PlayerController : Entity
     // 인풋 액션의 'Fire'와 연동 (마우스 좌클릭) - 
     public void OnFire(InputValue value)
     {
-        if (value.isPressed)
+        float fireValue = value.Get<float>();
+        
+        isFiringPressed = fireValue > 0.5f;
+
+        if (isFiringPressed && gun != null && !gun.gunData.isAutomatic)
         {
-            gun?.Fire();
+            gun.Fire();
         }
     }
 
+    public void OnReload(InputValue value)
+    {
+        if (value.isPressed)
+        {
+            gun?.StartReload();
+        }
+    }
     private void HandleMovement()
     {
         Vector3 moveDirection = new Vector3(moveInput.x, 0f, moveInput.y).normalized;
@@ -96,5 +113,33 @@ public class PlayerController : Entity
         cameraRotationX = Mathf.Clamp(cameraRotationX, -MAX_CAMERA_ROTATION_X, MAX_CAMERA_ROTATION_X);
 
         playerCamera.localRotation = Quaternion.Euler(cameraRotationX, 0f, 0f);
+    }
+
+    private void HandleShooting()
+    {
+        if (gun == null || gun.gunData == null) return;
+
+        if (isFiringPressed && gun.gunData.isAutomatic)
+        {
+            gun.Fire();
+        }
+    }
+
+    public void AddRecoil(Vector3 recoilDirection, float force)
+    {
+        // 총을 쏠 때마다 카메라 x축 회전값을 1~2도씩 위로 
+        cameraRotationX -= force * 0.5f; 
+        cameraRotationX = Mathf.Clamp(cameraRotationX, -MAX_CAMERA_ROTATION_X, MAX_CAMERA_ROTATION_X);
+        playerCamera.localRotation = Quaternion.Euler(cameraRotationX, 0f, 0f);
+
+        // 몸통 뒤로 밀림 제한 
+        // 현재 플레이어의 속도 중 반동 방향(뒤쪽) 성분만 추출해서 검사
+        float currentRecoilSpeed = Vector3.Dot(rb.linearVelocity, recoilDirection);
+
+        if (currentRecoilSpeed < maxRecoilVelocity)
+        {
+            // 과도하게 날아가는 걸 막기 위해 힘을 살짝 보정해서 줌
+            rb.AddForce(recoilDirection * force, ForceMode.Impulse);
+        }
     }
 }

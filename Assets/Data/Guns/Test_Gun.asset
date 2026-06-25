@@ -13,9 +13,13 @@ MonoBehaviour:
   m_Name: Test_Gun
   m_EditorClassIdentifier: Assembly-CSharp::GunData
   gunName: Pistol
+  weaponType: 1
+  isAutomatic: 1
   damage: 10
-  fireRate: 0.5
-  range: 100
-  bulletPrefab: {fileID: 0}
+  fireRate: 0.07
+  bulletSpeed: 50
+  maxRange: 100
+  bulletPrefab: {fileID: 6104304068761616416, guid: d0ab4e1deef0b934c91bb2c4888b232f, type: 3}
+  magSize: 30
+  reloadTime: 1.5
   recoilForce: 5
-  recoilRecoverySpeed: 10

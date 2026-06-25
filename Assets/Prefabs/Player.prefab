@@ -166,7 +166,7 @@ Transform:
   m_GameObject: {fileID: 7498640336194902235}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 2.38, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -198,7 +198,7 @@ Rigidbody:
   m_UseGravity: 1
   m_IsKinematic: 0
   m_Interpolate: 0
-  m_Constraints: 80
+  m_Constraints: 112
   m_CollisionDetection: 0
 --- !u!136 &4185575877547204012
 CapsuleCollider:
@@ -236,9 +236,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
   moveSpeed: 5
-  gun: {fileID: 0}
+  gun: {fileID: 2802793863481005645}
   jumpForce: 10
-  moveSpeed: 5
   rb: {fileID: 7805456220911163010}
   playerCamera: {fileID: 6780044117118029167}
   mouseSensitivity: 100

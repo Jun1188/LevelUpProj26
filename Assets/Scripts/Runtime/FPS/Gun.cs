@@ -39,6 +39,7 @@ public class Gun : MonoBehaviour
 
         // 총알 생성 및 위치 조절
         GameObject bullet = bulletPool.Get();
+        bullet.transform.SetParent(this.transform);
         bullet.transform.position = transform.position;
         if (playerController != null && playerController.playerCamera != null)
         {

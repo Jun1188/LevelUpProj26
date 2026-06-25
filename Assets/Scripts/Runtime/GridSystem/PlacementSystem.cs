@@ -79,7 +79,6 @@ public class PlacementSystem : MonoBehaviour
     }
 
     private int _index = 0;
-    [Button]
     private void _SelectBuildingTest()
     {
         if (!Application.isPlaying)
@@ -97,12 +96,24 @@ public class PlacementSystem : MonoBehaviour
         mode = BuildMode.Demolishing;
     }
 
-    [Button]
     private void _EnterDemolishModeTest()
     {
         if (!Application.isPlaying)
             return;
         EnterDemolishMode();
+    }
+
+    private void OnGUI()
+    {
+        if (GUI.Button(new Rect(20, 20, 150, 60), "_SelectBuildingTest"))
+        {
+            _SelectBuildingTest();
+        }
+        if (GUI.Button(new Rect(20, 100, 150, 60), "_EnterDemolishModeTest"))
+        {
+            _EnterDemolishModeTest();
+        }
+        GUI.TextArea(new Rect(20, 300, 300, 300), "회전 : R");
     }
 
     /// <summary>현재 모드를 빠져나오며 프리뷰/하이라이트를 정리한다.</summary>

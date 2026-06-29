@@ -1,11 +1,17 @@
 using UnityEngine;
+using UnityEngine.UI;
 
 public class InventoryUI : MonoBehaviour
 {
     [Header("References")]
-    public Inventory inventory;             // 백엔드 데이터 (여기에 플레이어 Inventory를 넣든, 건물 Inventory를 넣든 다 대응됨!)
-    public GameObject itemSocketPrefab;    
-    public Transform slotGridParent;       
+    public Inventory inventory;             
+    public GameObject itemSocketPrefab;     
+    public Transform slotGridParent;        
+
+    [Header("Slot Range Settings (★새로 추가된 옵션)")]
+    public bool useSlotRange = false;       // 특정 구역만 출력할 것인가?
+    public int startSlotIndex = 0;          // 출력 시작 슬롯 번호
+    public int endSlotIndex = 35;           // 출력 끝 슬롯 번호 (포함)
 
     private ItemSocket[] uiSlots;          
 
@@ -28,33 +34,25 @@ public class InventoryUI : MonoBehaviour
             Destroy(child.gameObject);
         }
 
-        uiSlots = new ItemSocket[inventory.slotCount];
+        // 사용할 슬롯 범위 계산
+        int start = useSlotRange ? startSlotIndex : 0;
+        int end = useSlotRange ? Mathf.Min(endSlotIndex, inventory.slotCount - 1) : inventory.slotCount - 1;
+        int count = end - start + 1;
 
-        for (int i = 0; i < inventory.slotCount; i++)
+        uiSlots = new ItemSocket[count];
+
+        for (int i = 0; i < count; i++)
         {
+            int slotIdx = start + i; // ★핵심: 백엔드 실제 인벤토리 배열의 절대 인덱스 매핑
             GameObject go = Instantiate(itemSocketPrefab, slotGridParent);
             
             InventorySlotUI slotLink = go.GetComponent<InventorySlotUI>();
             if (slotLink == null) slotLink = go.AddComponent<InventorySlotUI>();
-            slotLink.Init(i, this);
+            
+            // UI 슬롯에게 백엔드의 진짜 슬롯 인덱스를 바인딩해줍니다.
+            slotLink.Init(slotIdx, this);
 
             uiSlots[i] = go.GetComponent<ItemSocket>();
-
-            // 🎨 [시각적 기능 추가] 플레이어 인벤토리의 0번 슬롯(장비창) 디자인 차별화
-            if (InventoryManager.Instance != null && InventoryManager.Instance.playerController != null)
-            {
-                // 이 UI가 띄우고 있는 백엔드가 플레이어 가방이 맞고, 현재 생성 중인 칸이 0번(무기)일 때
-                if (inventory == InventoryManager.Instance.playerController.playerInventory && i == 0)
-                {
-                    // 프리팹에 붙어있는 배경 Image 컴포넌트를 찾아 색상 변경
-                    UnityEngine.UI.Image slotImage = go.GetComponent<UnityEngine.UI.Image>();
-                    if (slotImage != null)
-                    {
-                        // 💡 예시: 장비칸임을 직관적으로 알 수 있도록 투명도 있는 황금빛/주황빛 색상 적용
-                        slotImage.color = new Color(1.0f, 0.75f, 0.2f, 0.4f); 
-                    }
-                }
-            }
         }
     }
 
@@ -62,14 +60,20 @@ public class InventoryUI : MonoBehaviour
     {
         if (inventory == null || uiSlots == null) return;
 
-        if (uiSlots.Length != inventory.slotCount)
+        int start = useSlotRange ? startSlotIndex : 0;
+        int end = useSlotRange ? Mathf.Min(endSlotIndex, inventory.slotCount - 1) : inventory.slotCount - 1;
+        int count = end - start + 1;
+
+        if (uiSlots.Length != count)
         {
             InitUISlots();
+            return;
         }
 
-        for (int i = 0; i < inventory.slotCount; i++)
+        for (int i = 0; i < count; i++)
         {
-            ItemStack itemStack = inventory.slots[i];
+            int slotIdx = start + i;
+            ItemStack itemStack = inventory.slots[slotIdx];
             if (itemStack != null && itemStack.item != null && itemStack.amount > 0)
             {
                 uiSlots[i].SetItem(itemStack.item, itemStack.amount);
@@ -81,16 +85,13 @@ public class InventoryUI : MonoBehaviour
         }
     }
 
-    // 슬롯이 좌클릭 되었을 때 독단적으로 처리하지 않고 중앙 타워(InventoryManager)로 던집니다!
     public void OnSlotLeftClicked(int clickedIndex)
     {
-        if (inventory == null) return;
-        
         InventoryManager.Instance.HandleSlotLeftClick(inventory, clickedIndex, this);
     }
 
     public void OnSlotRightClicked(int clickedIndex)
     {
-        // 필요시 마크식 절반 나누기 구현 공간
+        InventoryManager.Instance.HandleSlotRightClick(inventory, clickedIndex, this);
     }
 }

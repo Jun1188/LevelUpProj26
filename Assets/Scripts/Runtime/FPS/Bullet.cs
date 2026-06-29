@@ -4,28 +4,39 @@ using UnityEngine.Pool;
 public class Bullet : MonoBehaviour
 {
     private IObjectPool<GameObject> managedPool;
-    public float lifeTime = 2f;
+    private float speed;
+    private float lifetime;
 
     public void SetPool(IObjectPool<GameObject> pool)
     {
         managedPool = pool;
     }
 
-    private void OnEnable()
+    public void Setup(float speed, float lifetime)
     {
-        // 총알이 활성화되면 지정된 시간 후 반환하는 함수 예약
-        Invoke(nameof(ReleaseToPool), lifeTime);
+        this.speed = speed;
+        this.lifetime = lifetime;
+        
+        // 이전 예치된 Invoke 취소 후 재등록
+        CancelInvoke(nameof(ReleaseToPool));
+        Invoke(nameof(ReleaseToPool), lifetime);
     }
 
-    private void OnDisable()
+    private void Update()
     {
-        // 비활성화 시 혹시 남아있을 Invoke 취소
-        CancelInvoke();
+        // 전방으로 비행
+        transform.Translate(Vector3.forward * speed * Time.deltaTime);
     }
 
     private void OnCollisionEnter(Collision collision)
     {
-        // 벽이나 적에 부딪히면 즉시 풀로 반환
+        // 무언가와 부딪히면 풀로 반환
+        ReleaseToPool();
+    }
+
+    private void OnTriggerEnter(Collider other)
+    {
+        // 트리거 충돌 시에도 풀로 반환 (벽/적 판정용)
         ReleaseToPool();
     }
 

@@ -13,8 +13,8 @@ GameObject:
   - component: {fileID: 7067881637915641613}
   - component: {fileID: 7841210833522721694}
   - component: {fileID: 2921555952730837254}
-  - component: {fileID: -1253044195317133521}
-  m_Layer: 0
+  - component: {fileID: -1916313825284617980}
+  m_Layer: 7
   m_Name: Test_Bullet
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -141,7 +141,7 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
---- !u!114 &-1253044195317133521
+--- !u!114 &-1916313825284617980
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -150,7 +150,6 @@ MonoBehaviour:
   m_GameObject: {fileID: 6104304068761616416}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 44cab27f467a3ef4f92eeec3ffa30c01, type: 3}
+  m_Script: {fileID: 11500000, guid: abbe4934aa233984b9b7a2ea92618b99, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Bullet
-  lifeTime: 2

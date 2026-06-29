@@ -9,7 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 7995179578143903283}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Weapon_Holder
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -30,7 +30,39 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 5017712778038258110}
+  - {fileID: 5355281485241008794}
   m_Father: {fileID: 6780044117118029167}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &3917618134708522169
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5355281485241008794}
+  m_Layer: 6
+  m_Name: Pos
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &5355281485241008794
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3917618134708522169}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 1.5}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 7995179578143903283}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &6369730769915939971
 GameObject:
@@ -44,7 +76,7 @@ GameObject:
   - component: {fileID: 3555798528200305232}
   - component: {fileID: 5778459994384416862}
   - component: {fileID: 2802793863481005645}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Gun
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -132,11 +164,12 @@ MonoBehaviour:
   m_GameObject: {fileID: 6369730769915939971}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e9333051c4e23914486427257e41c227, type: 3}
+  m_Script: {fileID: 11500000, guid: 2b5c90298fd24d448b280bcd744f7c50, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Gun
   gunData: {fileID: 11400000, guid: 845b0795164612a428f47c8252826ccd, type: 2}
   playerController: {fileID: 6442160254612740854}
+  muzzlePoint: {fileID: 5355281485241008794}
 --- !u!1 &7498640336194902235
 GameObject:
   m_ObjectHideFlags: 0
@@ -149,8 +182,9 @@ GameObject:
   - component: {fileID: 7805456220911163010}
   - component: {fileID: 4185575877547204012}
   - component: {fileID: 6442160254612740854}
+  - component: {fileID: 1341143159957256118}
   - component: {fileID: 1256689177612881881}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Player
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -232,16 +266,40 @@ MonoBehaviour:
   m_GameObject: {fileID: 7498640336194902235}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c2c3308cbb055054da289144d8191d27, type: 3}
+  m_Script: {fileID: 11500000, guid: 9bf1eeacb865c9a498ad35769cfce5dc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
   moveSpeed: 5
+  maxHealth: 100
   gun: {fileID: 2802793863481005645}
+  maxRecoilVelocity: 12
+  recoilDecaySpeed: 20
+  maxRecoilDistance: 1.2
+  recoilDistanceRecoverySpeed: 6
   jumpForce: 10
   rb: {fileID: 7805456220911163010}
   playerCamera: {fileID: 6780044117118029167}
   mouseSensitivity: 100
   MAX_CAMERA_ROTATION_X: 90
+  inventoryUIPanel: {fileID: 0}
+  inventoryUI: {fileID: 0}
+  playerInventory: {fileID: 1341143159957256118}
+  debugTestItem: {fileID: 11400000, guid: 87777112f27ea6b478b669a63dc0a6c0, type: 2}
+  weaponModels: []
+--- !u!114 &1341143159957256118
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7498640336194902235}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7b4b2931dea724a48acbd057dc96eef8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Inventory
+  slotCount: 36
+  slots: []
 --- !u!114 &1256689177612881881
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -284,7 +342,7 @@ GameObject:
   - component: {fileID: 2516082347585424752}
   - component: {fileID: 2013586750592316191}
   - component: {fileID: 4917694170790257521}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Main Camera
   m_TagString: MainCamera
   m_Icon: {fileID: 0}

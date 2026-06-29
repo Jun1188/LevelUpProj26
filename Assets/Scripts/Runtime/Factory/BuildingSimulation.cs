@@ -119,6 +119,21 @@ public class BeltSegment
     public IReadOnlyList<(ItemDataSO, float pos)> Items    => _items;
     public int                                    BeltCount => Belts.Count;
 
+    const float Spacing = 0.5f;
+
+    /// <summary>입구(pos 0)에 새 아이템을 올릴 공간이 있는가.</summary>
+    public bool CanAcceptAtEntry()
+        => _items.Count == 0 || _items[^1].pos >= Spacing;
+
+    /// <summary>입구에 올리기 성공하면 true. 막혀 있으면 false(버퍼 유지용).</summary>
+    public bool TryAddItem(ItemDataSO item)
+    {
+        if (!CanAcceptAtEntry()) return false;
+        _items.Add((item, 0f));
+        return true;
+    }
+
+    [Obsolete("Use TryAddItem() instead.")]
     public void AddItem(ItemDataSO item) => _items.Add((item, 0f));
 
     /// <summary>
@@ -129,16 +144,17 @@ public class BeltSegment
     {
         float advance = SpeedTilesPerSec * dt;
 
-        for (int i = _items.Count - 1; i >= 0; i--)
+        for (int i = 0; i < _items.Count; i++)
         {
             var (item, pos) = _items[i];
             float newPos = pos + advance;
 
-            // 바로 앞 아이템과의 최소 간격 유지 (0.5 타일)
-            if (i + 1 < _items.Count)
-                newPos = Mathf.Min(newPos, _items[i + 1].pos - 0.5f);
+            // 바로 앞(출구 쪽 = index i-1) 아이템과 0.5칸 간격 유지
+            if (i - 1 >= 0)
+                newPos = Mathf.Min(newPos, _items[i - 1].pos - 0.5f);
 
-            // 출구 도달 → 다음 건물로 전달 시도
+            newPos = Mathf.Max(newPos, pos);   // 역주행 방지 (음수/뒤로 밀림 차단)
+
             if (newPos >= BeltCount)
             {
                 var exitBelt = Belts[^1];
@@ -148,10 +164,11 @@ public class BeltSegment
                     if (!conn.To.Inventory.TryAddInput(item)) continue;
                     SimulationSystem.Instance.MarkDirty(conn.To);
                     _items.RemoveAt(i);
+                    i--;                       // ★ RemoveAt 후 인덱스 보정 (다음 요소 건너뛰기 방지)
                     sent = true;
                     break;
                 }
-                if (!sent) _items[i] = (item, BeltCount - 0.01f); // 출구 전 대기
+                if (!sent) _items[i] = (item, BeltCount - 0.01f);
             }
             else
             {
@@ -257,23 +274,26 @@ public class BeltBehavior : IBuildingBehavior
     {
         var seg = BeltSegmentManager.Instance?.GetSegment(_b);
 
-        // 💡 [핵심 수정 부분] 
         // 1. 내 입력 버퍼(Input)에 들어온 광석을 꺼내서 물리적인 컨베이어 벨트(Segment) 위로 올린다.
         foreach (var (item, count) in _b.Inventory.InputSnapshot)
         {
             if (seg != null)
             {
-                // 연속된 벨트 체인이면 세그먼트에 추가
-                for (int i = 0; i < count; i++) seg.AddItem(item);
-                _b.Inventory.TryConsumeInput(item, count);
+                int moved = 0;
+                while (moved < count && seg.TryAddItem(item))   // 막히면 루프 종료
+                    moved++;
+
+                if (moved > 0) _b.Inventory.TryConsumeInput(item, moved); // 받아준 만큼만 소비
+                                                                          // moved < count 면 나머지는 버퍼에 남아 백프레셔로 작용
             }
             else
             {
-                // 세그먼트가 없는 단독 벨트일 경우, 다음 건물로 즉시 푸시 시도
                 for (int i = 0; i < count; i++)
                 {
                     if (_b.TryPushOutput(item))
                         _b.Inventory.TryConsumeInput(item, 1);
+                    else
+                        break;   // ★ 단독 벨트도 막히면 멈춰야 함 (기존엔 실패해도 계속 돌았음)
                 }
             }
         }

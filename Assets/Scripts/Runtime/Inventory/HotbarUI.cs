@@ -6,10 +6,10 @@ public class HotbarUI : MonoBehaviour
     public static HotbarUI Instance { get; private set; }
 
     [Header("References")]
-    public Inventory playerInventory;       // 플레이어 백엔드 가방 데이터
-    public GameObject itemSocketPrefab;     // 기존에 사용하던 슬롯 프리팹 그대로 재사용!
-    public Transform hotbarGridParent;      // 핫바 슬롯들이 배치될 UI 부모
-    public InventoryUI mainInventoryUI;     // 🔥 인스펙터에서 직접 드래그 앤 드롭할 수 있도록 변수 개방!
+    public Inventory playerInventory;       
+    public GameObject itemSocketPrefab;     
+    public Transform hotbarGridParent;      
+    public InventoryUI mainInventoryUI;     
 
     [Header("Visual Colors (시각 효과 색상)")]
     public Color defaultSlotColor = new Color(1f, 1f, 1f, 0.3f);       
@@ -21,8 +21,18 @@ public class HotbarUI : MonoBehaviour
     private Image[] slotBackgrounds;
     private Image[] slotBorders;
 
-    // 🔥 [컴파일 에러 해결]: PlayerController에서 참조하는 핫바 개수 프로퍼티 구현
-    public int HotbarSlotCount => hotbarSlots != null ? hotbarSlots.Length : 5;
+    // 🔥 [유동적 크기 자동화]: 플레이어가 가진 설정을 실시간으로 단일 진실 공급원으로 삼습니다.
+    public int HotbarSlotCount 
+    {
+        get
+        {
+            if (InventoryManager.Instance != null && InventoryManager.Instance.playerController != null)
+            {
+                return InventoryManager.Instance.playerController.hotbarSlotCount;
+            }
+            return 5; // 방어용 기본값
+        }
+    }
 
     private void Awake()
     {
@@ -43,42 +53,36 @@ public class HotbarUI : MonoBehaviour
     {
         foreach (Transform child in hotbarGridParent) Destroy(child.gameObject);
 
-        // 🔥 플레이어 컨트롤러에 설정된 동적 핫바 크기(5)를 실시간 반영
-        int count = 5;
-        if (InventoryManager.Instance != null && InventoryManager.Instance.playerController != null)
-        {
-            count = InventoryManager.Instance.playerController.hotbarSlotCount;
-        }
-
+        // 🔥 플레이어 컨트롤러의 값을 토대로 슬롯 UI 배열을 동적 생성합니다!
+        int count = HotbarSlotCount; 
         hotbarSlots = new ItemSocket[count];
         slotBackgrounds = new Image[count];
         slotBorders = new Image[count];
 
-        // 🔥 [원인 1 해결]: 메인 UI가 비활성화(Hide) 상태여도 강제로 찾아오도록 Include 옵션 추가!
-        if (mainInventoryUI == null)
+        InventoryUI activeInventoryUI = mainInventoryUI;
+        if (activeInventoryUI == null)
         {
-            mainInventoryUI = FindFirstObjectByType<InventoryUI>(FindObjectsInactive.Include);
+            activeInventoryUI = FindFirstObjectByType<InventoryUI>(FindObjectsInactive.Include);
         }
 
         for (int i = 0; i < count; i++)
         {
             GameObject go = Instantiate(itemSocketPrefab, hotbarGridParent);
             
-            // 클릭 이벤트 연동 (이제 mainInventoryUI가 null이 아니므로 완벽히 작동합니다)
             InventorySlotUI slotLink = go.GetComponent<InventorySlotUI>();
-            if (slotLink != null && mainInventoryUI != null)
+            if (slotLink == null) slotLink = go.AddComponent<InventorySlotUI>();
+
+            // 핫바는 항상 가방의 0번 인덱스부터 차례대로 매핑됩니다.
+            if (slotLink != null && activeInventoryUI != null)
             {
-                slotLink.Init(i, mainInventoryUI);
+                slotLink.Init(i, activeInventoryUI);
             }
 
             hotbarSlots[i] = go.GetComponent<ItemSocket>();
             slotBackgrounds[i] = go.GetComponent<Image>();
 
             Transform borderTransform = go.transform.Find("Border") ?? go.transform.Find("Frame");
-            if (borderTransform != null)
-            {
-                slotBorders[i] = borderTransform.GetComponent<Image>();
-            }
+            if (borderTransform != null) slotBorders[i] = borderTransform.GetComponent<Image>();
         }
     }
 
@@ -94,6 +98,8 @@ public class HotbarUI : MonoBehaviour
 
         for (int i = 0; i < hotbarSlots.Length; i++)
         {
+            if (i >= playerInventory.slots.Length) break;
+
             ItemStack itemStack = playerInventory.slots[i];
             if (itemStack != null && itemStack.item != null && itemStack.amount > 0)
             {
@@ -122,10 +128,6 @@ public class HotbarUI : MonoBehaviour
                     hotbarSlots[i].transform.localScale = Vector3.one * 1.0f;
                 }
             }
-            else if (slotBackgrounds[i] != null)
-            {
-                if (i == activeIndex) slotBackgrounds[i].color = Color.white;
-            }
         }
     }
-}   
+}

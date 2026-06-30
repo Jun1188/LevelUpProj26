@@ -15,6 +15,28 @@ public interface IInteractable
 }
 
 
+public class PathfindingState : IEntityState
+{
+    public void FindPath(Entity entity, IInteractable target)
+    {
+        if (target == null) return;
+
+        // 분리된 PathFinder를 이용해 순수하게 '경로 데이터'만 가져옴
+        List<Node> path = PathFinder.FindPath(entity.GetPosition(), target.GetPosition());
+
+        if (path != null && path.Count > 0)
+        {
+            // 찾은 경로를 따라가도록 Entity에게 명령
+            entity.StartMoving(path);
+        }
+        else
+        {
+            // 길을 못 찾았을 경우 다시 대기 상태로 복귀
+            entity.SetState(new IdleState());
+        }
+    }
+}
+
 
 
 // 상태 패턴을 위한 인터페이스 정의
@@ -35,15 +57,7 @@ public class IdleState : IEntityState
 }
 
 // 길찾기 상태
-public class PathfindingState : IEntityState
-{
-    public void FindPath(Entity entity, IInteractable target)
-    {
-        
-        // 실제 A* 길찾기 호출
-        entity.FindByAstar(target);
-    }
-}
+
 
 
 
@@ -134,154 +148,47 @@ public abstract class Entity : MonoBehaviour, IInteractable //abstract class로 
         }
     }
 
-
-    // A* 알고리즘 길찾기 제공 함수
-    public virtual void FindByAstar(IInteractable target)
+    // 외부(또는 상태 클래스)에서 찾은 경로를 주입받아 이동을 시작하는 메서드
+    public void StartMoving(List<Node> path)
     {
-        if (target == null) return;
-
-        Vector3 startPos = GetPosition();
-        Vector3 targetPos = target.GetPosition();
-
-        //Debug.Log($"A* Algorithm: Calculating path from {startPos} to {targetPos}");
-
-        
-        Node startNode = GridManager.Instance.NodeFromWorldPoint(startPos);
-        Node targetNode = GridManager.Instance.NodeFromWorldPoint(targetPos);
-
-        List<Node> openSet = new List<Node>();
-        HashSet<Node> closedSet = new HashSet<Node>();
-        openSet.Add(startNode);
-
-        while (openSet.Count > 0)
-        {
-            // 1. OpenList에서 F비용이 가장 낮은 노드를 찾음 (F = G + H)
-            Node currentNode = openSet[0];
-            for (int i = 1; i < openSet.Count; i++)
-            {
-                if (openSet[i].FCost < currentNode.FCost || 
-                   (openSet[i].FCost == currentNode.FCost && openSet[i].hCost < currentNode.hCost))
-                {
-                    currentNode = openSet[i];
-                }
-            }
-
-            openSet.Remove(currentNode);
-            closedSet.Add(currentNode);
-
-            // 2. 목적지에 도착했는지 확인
-            if (currentNode == targetNode)
-            {
-                RetracePath(startNode, targetNode);
-                return;
-            }
-
-            // 3. 인접한 이웃 노드들 탐색
-            foreach (Node neighbour in GridManager.Instance.GetNeighbours(currentNode))
-            {
-                // 벽이거나 이미 탐색한 노드면 무시
-                if (!neighbour.walkable || closedSet.Contains(neighbour))
-                {
-                    continue;
-                }
-
-                // 시작점에서 이웃 노드까지의 새로운 G비용 계산
-                int newCostToNeighbour = currentNode.gCost + GetDistance(currentNode, neighbour);
-                
-                if (newCostToNeighbour < neighbour.gCost || !openSet.Contains(neighbour))
-                {
-                    neighbour.gCost = newCostToNeighbour;
-                    neighbour.hCost = GetDistance(neighbour, targetNode);
-                    neighbour.parent = currentNode;
-
-                    if (!openSet.Contains(neighbour))
-                    {
-                        openSet.Add(neighbour);
-                    }
-                }
-            }
-        }
-        
-    }
-
-
-
-    // 도착 후 부모 노드를 역추적하여 실제 경로를 리스트로 만드는 함수
-    
-    protected virtual void RetracePath(Node startNode, Node endNode)
-    {
-        List<Node> path = new List<Node>();
-        Node currentNode = endNode;
-
-        while (currentNode != startNode)
-        {
-            path.Add(currentNode);
-            currentNode = currentNode.parent;
-        }
-
-        path.Reverse(); // 역추적했으므로 순서를 뒤집음
-        
         currentPath = path;
-
-        // 찾은 경로를 바탕으로 이동 코루틴 시작
-        if (moveCoroutine != null)
-        {
-            StopCoroutine(moveCoroutine);
-        }
+        if (moveCoroutine != null) StopCoroutine(moveCoroutine);
         moveCoroutine = StartCoroutine(FollowPath());
     }
-
-
-
-
-    // 찾은 경로를 따라 실제 오브젝트를 이동시키는 코루틴
+    // 실제 오브젝트를 움직이는 로직 (Entity의 고유 역할)
     protected virtual IEnumerator FollowPath()
     {
-        if (currentPath == null || currentPath.Count == 0)
-            yield break;
-
+        if (currentPath == null || currentPath.Count == 0) yield break;
         int targetIndex = 0;
-        // 경로의 첫 번째 노드(다음 이동 지점)를 목표로 설정
         Vector3 currentWaypoint = currentPath[0].worldPosition;
-
+        currentWaypoint.y = transform.position.y; // Y축 높이 보정
         while (true)
         {
-            // 현재 웨이포인트와의 거리가 충분히 가까워지면 다음 웨이포인트로 타겟 갱신
-            if (Vector3.Distance(transform.position, currentWaypoint) < 0.1f)
+            Vector3 flatPosition = new Vector3(transform.position.x, 0, transform.position.z);
+            Vector3 flatWaypoint = new Vector3(currentWaypoint.x, 0, currentWaypoint.z);
+            if (Vector3.Distance(flatPosition, flatWaypoint) < 0.1f)
             {
                 targetIndex++;
                 if (targetIndex >= currentPath.Count)
                 {
-                    // 최종 목적지에 도착함
+                    // 목적지 도착 완료
                     currentPath = null;
-                    // 도착 후 다시 대기 상태로 전환 (필요시 공격이나 다른 상태로 전환 가능)
                     SetState(new IdleState());
                     yield break;
                 }
                 currentWaypoint = currentPath[targetIndex].worldPosition;
+                currentWaypoint.y = transform.position.y;
             }
-
-            // 등속으로 목표 지점을 향해 이동
             transform.position = Vector3.MoveTowards(transform.position, currentWaypoint, moveSpeed * Time.deltaTime);
-            // 한 프레임 대기
             yield return null;
         }
     }
 
-    // 휴리스틱 거리 계산 (대각선 이동 허용 시 통상적인 계산법)
-    protected int GetDistance(Node nodeA, Node nodeB)
-    {
-        int dstX = Mathf.Abs(nodeA.gridX - nodeB.gridX);
-        int dstY = Mathf.Abs(nodeA.gridY - nodeB.gridY);
 
-        if (dstX > dstY)
-            return 14 * dstY + 10 * (dstX - dstY);
-        return 14 * dstX + 10 * (dstY - dstX);
-    }
-    
 
-// 인터페이스에 정의된 자신의 위치 반환
-public Vector3 GetPosition()
+
+    // 인터페이스에 정의된 자신의 위치 반환
+    public Vector3 GetPosition()
     {
         return transform.position;
     }

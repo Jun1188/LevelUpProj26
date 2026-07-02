@@ -7,6 +7,12 @@ public static class PathFinder
     // A* 알고리즘을 수행하고 결과 경로(List<Node>)를 반환
     public static List<Node> FindPath(Vector3 startPos, Vector3 targetPos)
     {
+        if (GridManager.Instance == null)
+        {
+            Debug.LogWarning("GridManager.Instance is null. Please ensure a GridManager exists in the scene.");
+            return null;
+        }
+
         Node startNode = GridManager.Instance.NodeFromWorldPoint(startPos);
         Node targetNode = GridManager.Instance.NodeFromWorldPoint(targetPos);
         if (startNode == null || targetNode == null) return null;

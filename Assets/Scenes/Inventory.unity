@@ -992,9 +992,7 @@ MonoBehaviour:
   inventory: {fileID: 1359956093}
   itemSocketPrefab: {fileID: 8219301102851577290, guid: 9856b207c0cfb094fb37b743ff1e9f73, type: 3}
   slotGridParent: {fileID: 52630023}
-  useSlotRange: 1
-  startSlotIndex: 9
-  endSlotIndex: 35
+  isPlayerMainInventory: 1
 --- !u!1 &1159137502
 GameObject:
   m_ObjectHideFlags: 0
@@ -1580,11 +1578,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HotbarUI
   playerInventory: {fileID: 1359956093}
-  mainInventoryUI: {fileID: 1107685342}
   itemSocketPrefab: {fileID: 8219301102851577290, guid: 9856b207c0cfb094fb37b743ff1e9f73, type: 3}
   hotbarGridParent: {fileID: 1159137503}
-  startSlotIndex: 0
-  endSlotIndex: 8
+  mainInventoryUI: {fileID: 1107685342}
   defaultSlotColor: {r: 1, g: 1, b: 1, a: 0.3}
   equipmentSlotColor: {r: 0.2, g: 0.5, b: 1, a: 0.5}
   activeBorderColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
@@ -1597,6 +1593,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 1341143159957256118, guid: 9c0e1513e619b28418f8a1a22933d74a, type: 3}
+      propertyPath: slotCount
+      value: 45
+      objectReference: {fileID: 0}
     - target: {fileID: 5008654619937830270, guid: 9c0e1513e619b28418f8a1a22933d74a, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
@@ -1880,9 +1880,7 @@ MonoBehaviour:
   inventory: {fileID: 1491563210}
   itemSocketPrefab: {fileID: 8219301102851577290, guid: 9856b207c0cfb094fb37b743ff1e9f73, type: 3}
   slotGridParent: {fileID: 152027398509494581}
-  useSlotRange: 0
-  startSlotIndex: 0
-  endSlotIndex: 35
+  isPlayerMainInventory: 0
 --- !u!114 &3744430763014074192
 MonoBehaviour:
   m_ObjectHideFlags: 0

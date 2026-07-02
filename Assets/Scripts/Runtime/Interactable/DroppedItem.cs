@@ -30,6 +30,27 @@ public class DroppedItem : Interactable
             Debug.LogWarning("[가방 가득 참] 인벤토리에 빈 공간이 없습니다!");
         }
     }
+    private void OnTriggerEnter(Collider other)
+    {
+        // 1. 부딪힌 오브젝트가 플레이어인지 확인
+        if (other.CompareTag("Player"))
+        {
+            if (other.TryGetComponent<PlayerController>(out var player))
+            {
+                // 2. 플레이어 백엔드 가방에 아이템 데이터 쏙 집어넣기!
+                bool isSuccess = player.playerInventory.AddItem(item, amount);
+                
+                if (isSuccess)
+                {
+                    // 3. 획득에 성공했다면 화면의 모든 인벤토리/핫바 UI 새로고침!
+                    InventoryManager.Instance.RefreshAllGameUIs(player.playerInventory);
+                    
+                    // 4. 바닥에 있던 아이템 오브젝트는 삭제
+                    Destroy(gameObject);
+                }
+            }
+        }
+    }
 }
 
 // 💡 마인크래프트처럼 아이템이 제자리에서 빙글빙글 돌게 만드는 컴포넌트

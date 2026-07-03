@@ -168,9 +168,11 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 1024
   buildingDataList:
+  - {fileID: 11400000, guid: 4c9101522ec57d445bfffcd9c4ed0114, type: 2}
   - {fileID: 11400000, guid: e5bbfc689bf99f84cb0cbfdd9024da42, type: 2}
   - {fileID: 11400000, guid: a90ef4f8699ce3c4a8ae99ff21f5e5fd, type: 2}
-  - {fileID: 11400000, guid: 4c9101522ec57d445bfffcd9c4ed0114, type: 2}
+  - {fileID: 11400000, guid: cdba9abef61a42849abd7c70dc73309d, type: 2}
+  - {fileID: 11400000, guid: 4999d62c23db92b40a7405ce3239cc2b, type: 2}
   cellSize: 1
   gridOrigin: {x: 0, y: 0, z: 0}
   raycastStartHeight: 100
@@ -515,12 +517,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7d13d13fee2e387499f9af20db3d9c7e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FactoryTest
-  mainCamera: {fileID: 632087949}
-  groundMask:
-    serializedVersion: 2
-    m_Bits: 1024
-  cellSize: 1
-  gridOrigin: {x: 0, y: 0, z: 0}
   ironOreSO: {fileID: 11400000, guid: 607e314f4e7ebd443adabb092a59beee, type: 2}
 --- !u!1 &1806777130
 GameObject:

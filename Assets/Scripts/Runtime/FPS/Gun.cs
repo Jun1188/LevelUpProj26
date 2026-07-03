@@ -4,29 +4,27 @@ using UnityEngine.Pool;
 
 public class Gun : MonoBehaviour
 {
+    #region [1. Variables]
+    [Header("References")]
     public GunData gunData;
     public PlayerController playerController;
     public Transform muzzlePoint; 
-    
+
+    [Header("Weapon States")]
     private float lastFireTime = 0f;
     private int currentAmmo;
     private bool isReloading = false;
     private bool isFiringPressed = false; 
 
+    [Header("Object Pooling Backend")]
     private IObjectPool<GameObject> bulletPool;
     private GameObject previousBulletPrefab; // 이전 총알 프리팹 추적용
+    #endregion
 
+    #region [2. Unity Lifecycle]
     private void Awake()
     {
-        bulletPool = new ObjectPool<GameObject>(
-            createFunc: CreateBullet,       
-            actionOnGet: OnGetBullet,       
-            actionOnRelease: OnReleaseBullet,
-            actionOnDestroy: OnDestroyBullet,
-            collectionCheck: true,
-            defaultCapacity: 20,            
-            maxSize: 50                    
-        );
+        InitializePool();
     }
 
     private void Start()
@@ -38,25 +36,35 @@ public class Gun : MonoBehaviour
     {
         if (gunData == null) return;
 
-        // 연사 무기(SMG)인 경우 누르고 있으면 자동 사격
+        // 연사 무기(SMG)인 경우 마우스 좌클릭을 누르고 있으면 자동 사격
         if (isFiringPressed && gunData.isAutomatic && !isReloading)
         {
             Fire();
         }
     }
+    #endregion
+
+    #region [3. Public API - Weapon Setup & Control]
+    
+    // ⭐️ 중복되던 ChangeGunData와 SetupGunData를 하나로 깔끔하게 통합했습니다.
     public void SetupGunData(GunData newGunData)
     {
         if (newGunData == null) return;
 
-        // 1. 데이터 갈아끼우기
+        // 1. 기존 풀 내용 초기화 및 데이터 교체
+        if (gunData == null || gunData.bulletPrefab != newGunData.bulletPrefab)
+        {
+            bulletPool?.Clear(); // 풀 내부의 구형 총알 오브젝트 파괴
+        }
+
         this.gunData = newGunData;
         
-        // 2. 새 총의 최대 탄약 수로 장전 시키기
-        currentAmmo = gunData.magSize; 
+        // 2. 새 총 상태 초기화 (탄창 완충, 진행 중이던 장전 코루틴 차단)
+        currentAmmo = gunData.magSize;
         isReloading = false;
-        StopAllCoroutines(); // 재장전 중 스왑했다면 이전 재장전 코루틴 취소
+        StopAllCoroutines(); 
 
-        // 3. ✨ 총알 프리팹이 바뀌었다면 오브젝트 풀을 새로 갱신해 줍니다.
+        // 3. 총알 프리팹이 변경되었다면 풀 재생성
         if (previousBulletPrefab != gunData.bulletPrefab)
         {
             previousBulletPrefab = gunData.bulletPrefab;
@@ -65,39 +73,42 @@ public class Gun : MonoBehaviour
 
         Debug.Log($"[{gunData.gunName}] 장착 완료! 데미지: {gunData.damage}, 탄창: {gunData.magSize}");
     }
-    private void InitializePool()
+
+    // 무기 장착 해제 기능
+    public void ClearGunData()
     {
-        // 기존 풀이 있었다면 안전하게 비우거나 새로 할당합니다.
-        bulletPool = new ObjectPool<GameObject>(
-            createFunc: CreateBullet,       
-            actionOnGet: OnGetBullet,       
-            actionOnRelease: OnReleaseBullet,
-            actionOnDestroy: OnDestroyBullet,
-            collectionCheck: true,
-            defaultCapacity: 20,            
-            maxSize: 50                    
-        );
+        gunData = null;
+        currentAmmo = 0;
+        isFiringPressed = false;
+        isReloading = false;
+        StopAllCoroutines();
+        Debug.Log("[무기 해제] 무기를 해제하여 공격할 수 없습니다.");
     }
 
     public void SetFiringPressed(bool pressed)
     {
         isFiringPressed = pressed;
     }
+    #endregion
 
+    #region [4. Core Mechanics - Fire & Reload]
     public bool Fire()
     {
         if (!gameObject.activeSelf) return false;
         if (gunData == null || gunData.bulletPrefab == null) return false;
-        if (Time.time < lastFireTime + gunData.fireRate) return false; 
-        if (isReloading || currentAmmo <= 0) 
+        if (Time.time < lastFireTime + gunData.fireRate) return false;
+        
+        if (isReloading || currentAmmo <= 0)
         {
             if (currentAmmo <= 0 && !isReloading) StartReload();
             return false;
         }
 
+        // 총알 스폰 위치 및 회전값 결정
         Vector3 spawnPos = muzzlePoint != null ? muzzlePoint.position : transform.position;
         Quaternion spawnRot = muzzlePoint != null ? muzzlePoint.rotation : transform.rotation;
 
+        // 풀에서 총알 꺼내기
         GameObject bullet = bulletPool.Get();
         bullet.transform.position = spawnPos;
         bullet.transform.rotation = spawnRot;
@@ -105,20 +116,20 @@ public class Gun : MonoBehaviour
         Bullet bulletScript = bullet.GetComponent<Bullet>();
         if (bulletScript != null)
         {
-            bulletScript.Setup(gunData.bulletSpeed, 3f); 
+            bulletScript.Setup(gunData.bulletSpeed, 3f); // 3초 뒤 자동 반환
         }
 
         currentAmmo--;
-        lastFireTime = Time.time; 
+        lastFireTime = Time.time;
 
+        // 플레이어 몸통 및 카메라에 반동 수치 전달
         if (playerController != null)
         {
-            // 반동 방향 계산 (플레이어가 바라보는 방향의 정반대, 수평 유지)
-            Vector3 recoilDir = -playerController.transform.forward; 
+            Vector3 recoilDir = -playerController.transform.forward; // 바라보는 방향 정반대
             recoilDir.y = 0f; // 수평 유지
             recoilDir.Normalize();
             
-            // 단 한 번의 호출로 수직 카메라 반동 수치와 수평 몸통 반동 수치를 모두 전달합니다!
+            // ⭐️ 해결: PlayerController의 수정된 3개짜리 매개변수 AddRecoil을 정상 호출합니다!
             playerController.AddRecoil(recoilDir, gunData.verticalRecoil, gunData.horizontalRecoil);
         }
 
@@ -139,8 +150,22 @@ public class Gun : MonoBehaviour
         isReloading = false;
         Debug.Log($"{gunData.gunName} 재장전 완료!");
     }
+    #endregion
 
-    #region 오브젝트 풀 내부 함수들
+    #region [5. Object Pooling Core Functions]
+    private void InitializePool()
+    {
+        bulletPool = new ObjectPool<GameObject>(
+            createFunc: CreateBullet,       
+            actionOnGet: OnGetBullet,       
+            actionOnRelease: OnReleaseBullet,
+            actionOnDestroy: OnDestroyBullet,
+            collectionCheck: true,
+            defaultCapacity: 20,            
+            maxSize: 50                    
+        );
+    }
+
     private GameObject CreateBullet()
     {
         GameObject bullet = Instantiate(gunData.bulletPrefab);
@@ -152,31 +177,4 @@ public class Gun : MonoBehaviour
     private void OnReleaseBullet(GameObject bullet) => bullet.SetActive(false);
     private void OnDestroyBullet(GameObject bullet) => Destroy(bullet);
     #endregion
-
-    // 기존 Gun.cs 내부에 아래 두 함수를 추가(혹은 덮어쓰기)해 주세요!
-
-    public void ChangeGunData(GunData newGunData)
-    {
-        if (newGunData == null) return;
-
-        if (gunData == null || gunData.bulletPrefab != newGunData.bulletPrefab)
-        {
-            bulletPool?.Clear(); // 풀 내부의 기존 구형 총알 오브젝트 파괴 및 공백화
-        }
-
-        gunData = newGunData;
-        currentAmmo = gunData.magSize; // 새 총을 장착하면 탄창을 가득 채워줍니다
-        isReloading = false;           // 이전 무기에서 진행 중이던 재장전 코루틴 상태 초기화
-        
-        Debug.Log($"[Gun 장착 완료] 현재 활성화된 무기 데이터: {gunData.gunName}");
-    }
-
-    public void ClearGunData()
-    {
-        gunData = null;
-        currentAmmo = 0;
-        isFiringPressed = false;
-        isReloading = false;
-        Debug.Log("[무기 해제] 무기를 해제하여 공격할 수 없습니다.");
-    }
 }

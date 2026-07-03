@@ -15,7 +15,7 @@ using UnityEngine;
 
 public enum Direction        { North, East, South, West }
 public enum BuildingCategory { Producer, Transport, Processor, Storage, Utility }
-public enum ItemType         { Ore, Ingot, Component, Fuel, Misc }
+public enum ItemType         { Ore, Ingot, Component, Fuel, Misc, Weapon, Helmet, Chestplate, Boots }
 
 // ─── 방향 헬퍼 ─────────────────────────────────────────────────
 

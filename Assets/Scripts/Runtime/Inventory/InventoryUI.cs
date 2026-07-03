@@ -3,11 +3,15 @@ using UnityEngine;
 public class InventoryUI : MonoBehaviour
 {
     [Header("References")]
-    public Inventory inventory;             // 백엔드 데이터 (여기에 플레이어 Inventory를 넣든, 건물 Inventory를 넣든 다 대응됨!)
+    public Inventory inventory;             
     public GameObject itemSocketPrefab;     
     public Transform slotGridParent;        
 
-    private ItemSocket[] uiSlots;           
+    [Header("★화면 자동 연동 옵션")]
+    public bool isPlayerMainInventory = false; // 체크하면 플레이어 핫바를 제외한 가방 칸만 자동 계산
+
+    // ❌ 무의미한 startSlotIndex, endSlotIndex, useSlotRange 변수 전부 삭제!!
+    private ItemSocket[] uiSlots;          
 
     private void Start()
     {
@@ -23,21 +27,30 @@ public class InventoryUI : MonoBehaviour
 
     public void InitUISlots()
     {
-        foreach (Transform child in slotGridParent)
+        foreach (Transform child in slotGridParent) Destroy(child.gameObject);
+
+        // 🔥 [대폭 최적화] 기본값은 인벤토리의 처음(0)부터 끝(slotCount - 1)까지입니다.
+        int start = 0;
+        int end = inventory.slotCount - 1;
+
+        // 오직 '플레이어 메인 가방 UI'일 때만 자동으로 앞부분(핫바)을 건너뜁니다!
+        if (isPlayerMainInventory && InventoryManager.Instance != null && InventoryManager.Instance.playerController != null)
         {
-            Destroy(child.gameObject);
+            start = InventoryManager.Instance.playerController.hotbarSlotCount;
         }
 
-        uiSlots = new ItemSocket[inventory.slotCount];
+        int count = Mathf.Max(0, end - start + 1);
+        uiSlots = new ItemSocket[count];
 
-        for (int i = 0; i < inventory.slotCount; i++)
+        for (int i = 0; i < count; i++)
         {
+            int slotIdx = start + i; 
             GameObject go = Instantiate(itemSocketPrefab, slotGridParent);
             
             InventorySlotUI slotLink = go.GetComponent<InventorySlotUI>();
             if (slotLink == null) slotLink = go.AddComponent<InventorySlotUI>();
-            slotLink.Init(i, this);
-
+            
+            slotLink.Init(slotIdx, this);
             uiSlots[i] = go.GetComponent<ItemSocket>();
         }
     }
@@ -46,14 +59,27 @@ public class InventoryUI : MonoBehaviour
     {
         if (inventory == null || uiSlots == null) return;
 
-        if (uiSlots.Length != inventory.slotCount)
+        // 🔥 새로고침할 때도 동일하게 범위를 자동 계산합니다.
+        int start = 0;
+        int end = inventory.slotCount - 1;
+
+        if (isPlayerMainInventory && InventoryManager.Instance != null && InventoryManager.Instance.playerController != null)
         {
-            InitUISlots();
+            start = InventoryManager.Instance.playerController.hotbarSlotCount;
         }
 
-        for (int i = 0; i < inventory.slotCount; i++)
+        int count = Mathf.Max(0, end - start + 1);
+
+        if (uiSlots.Length != count)
         {
-            ItemStack itemStack = inventory.slots[i];
+            InitUISlots();
+            return;
+        }
+
+        for (int i = 0; i < count; i++)
+        {
+            int slotIdx = start + i;
+            ItemStack itemStack = inventory.slots[slotIdx];
             if (itemStack != null && itemStack.item != null && itemStack.amount > 0)
             {
                 uiSlots[i].SetItem(itemStack.item, itemStack.amount);
@@ -65,15 +91,13 @@ public class InventoryUI : MonoBehaviour
         }
     }
 
-    // 슬롯이 좌클릭 되었을 때 독단적으로 처리하지 않고 중앙 타워(InventoryManager)로 던집니다!
     public void OnSlotLeftClicked(int clickedIndex)
     {
-        if (inventory == null) return;
-        InventoryManager.Instance.HandleSlotLeftClick(inventory, clickedIndex);
+        InventoryManager.Instance.HandleSlotLeftClick(inventory, clickedIndex, this);
     }
 
     public void OnSlotRightClicked(int clickedIndex)
     {
-        // 필요시 마크식 절반 나누기 구현 공간
+        InventoryManager.Instance.HandleSlotRightClick(inventory, clickedIndex, this);
     }
 }

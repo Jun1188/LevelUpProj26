@@ -284,7 +284,7 @@ MonoBehaviour:
   inventoryUIPanel: {fileID: 0}
   inventoryUI: {fileID: 0}
   playerInventory: {fileID: 1341143159957256118}
-  debugTestItem: {fileID: 11400000, guid: 87777112f27ea6b478b669a63dc0a6c0, type: 2}
+  debugTestItem: {fileID: 11400000, guid: e92829eb1699dab47a38ddd2df1e22ad, type: 2}
   weaponModels: []
 --- !u!114 &1341143159957256118
 MonoBehaviour:

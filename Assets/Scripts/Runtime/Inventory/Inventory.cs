@@ -22,15 +22,20 @@ public class Inventory : MonoBehaviour
 
     private void Awake()
     {
-        slots = new ItemStack[slotCount];
+        if (slots == null || slots.Length == 0)
+        {
+            slots = new ItemStack[slotCount];
+        }
+        else if (slots.Length != slotCount)
+        {
+            Array.Resize(ref slots, slotCount);
+        }
 
-        // 🛠️ 임시 치트키: 프로젝트에 있는 아무 ItemDataSO 에셋이나 하나 찾아서 
-        // Resources 폴더에 넣거나 인스펙터로 받아온 뒤 테스트 가능해!
-        // 아래는 프로젝트 내 "Factory/Item" 메뉴로 만든 아이템 에셋이 존재할 때 작동하는 예시 코드야.
+        // 기존 테스트용 코드 (필요 없다면 지우셔도 됩니다)
         ItemDataSO testItem = Resources.Load<ItemDataSO>("TestItemName"); 
         if (testItem != null)
         {
-            AddItem(testItem, 10); // 시작할 때 10개 획득하게 만들기!
+            AddItem(testItem, 10); 
         }
     }
 

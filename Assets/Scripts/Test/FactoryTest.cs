@@ -110,6 +110,46 @@ public class FactoryTest : MonoBehaviour
         GUI.TextArea(new Rect(20, 200, 400, 300), currentBuildingInfo);
     }
 
+    static Vector3 SegmentPosToWorld(BeltSegment seg, float pos)
+    {
+        int n = seg.Belts.Count;
+
+        // Belts[i] 중심의 pos = (n-1-i) + 0.5.  pos→연속 인덱스 u로 역변환:
+        //   u = (n - 0.5) - pos   (pos 클수록 u 작음 = 출구 쪽 index 0)
+        float u = (n - 0.5f) - pos;
+
+        // 입구 바깥(파랑 = Belts[^1] 뒤로 외삽)
+        if (u >= n - 1)
+        {
+            Vector3 c = seg.Belts[n - 1].transform.position;
+            Vector3 dir = (n > 1)
+                ? (seg.Belts[n - 2].transform.position - c).normalized   // 입구→출구 진행 방향
+                : ExitDir(seg.Belts[n - 1]);
+            return c + dir * (u - (n - 1)) * -1f;   // 입구 뒤쪽
+        }
+
+        // 출구 바깥(빨강 = Belts[0] 앞으로 외삽, 조립기 쪽)
+        if (u <= 0f)
+        {
+            Vector3 c = seg.Belts[0].transform.position;
+            Vector3 dir = (n > 1)
+                ? (c - seg.Belts[1].transform.position).normalized       // 진행 방향(출구 쪽)
+                : ExitDir(seg.Belts[0]);
+            return c + dir * (-u);
+        }
+
+        // 중간: 인접 벨트 중심 보간
+        int j = Mathf.FloorToInt(u);
+        float frac = u - j;
+        return Vector3.Lerp(seg.Belts[j].transform.position,
+                            seg.Belts[j + 1].transform.position, frac);
+    }
+
+    static Vector3 ExitDir(BuildingInstance b)
+        => (b.OutputConnections.Count > 0 && b.OutputConnections[0].To != null)
+           ? (b.OutputConnections[0].To.transform.position - b.transform.position).normalized
+           : b.transform.forward;
+
     void OnDrawGizmos()
     {
         // 게임이 실행 중일 때만 기즈모 연산 수행
@@ -150,37 +190,21 @@ public class FactoryTest : MonoBehaviour
 
             foreach (var seg in segManager.Segments)
             {
+                int n = seg.Belts.Count;
+                if (n == 0) continue;
+
+                // Belts[0] / Belts[^1] 위치에 큰 마커 (입구·출구 식별용)
+                Gizmos.color = Color.red; Gizmos.DrawSphere(seg.Belts[0].transform.position + Vector3.up, 0.25f);   // Belts[0]
+                Gizmos.color = Color.blue; Gizmos.DrawSphere(seg.Belts[n - 1].transform.position + Vector3.up, 0.25f); // Belts[^1]
+                Gizmos.color = Color.yellow;
+
                 if (seg == null || !seg.HasItems) continue;
 
                 foreach (var (item, pos) in seg.Items)
                 {
-                    // pos 값을 기준으로 현재 어느 벨트 위에 있는지 인덱스 계산 (소수점 버림)
-                    int beltIndex = Mathf.FloorToInt(pos);
-
-                    if (beltIndex >= 0 && beltIndex < seg.Belts.Count)
-                    {
-                        BuildingInstance currentBelt = seg.Belts[beltIndex];
-                        if (currentBelt == null) continue;
-
-                        // 현재 벨트 타일 내에서의 진행 비율 (0.0 ~ 1.0)
-                        float t = pos - beltIndex;
-                        Vector3 itemWorldPos;
-
-                        // 다음 연속된 벨트가 존재한다면 두 벨트 위치를 보간(Lerp)
-                        if (beltIndex < seg.Belts.Count - 1 && seg.Belts[beltIndex + 1] != null)
-                        {
-                            itemWorldPos = Vector3.Lerp(currentBelt.transform.position, seg.Belts[beltIndex + 1].transform.position, t);
-                        }
-                        else
-                        {
-                            // 세그먼트의 마지막 벨트인 경우 앞방향 벡터를 기준으로 오프셋 계산
-                            itemWorldPos = currentBelt.transform.position + currentBelt.transform.forward * (t - 0.5f);
-                        }
-
-                        // 벨트 표면 위로 기즈모 위치 보정
-                        itemWorldPos.y += 0.6f;
-                        Gizmos.DrawSphere(itemWorldPos, 0.15f);
-                    }
+                    Vector3 wp = SegmentPosToWorld(seg, pos);
+                    wp.y += 0.6f;
+                    Gizmos.DrawSphere(wp, 0.15f);
                 }
             }
         }

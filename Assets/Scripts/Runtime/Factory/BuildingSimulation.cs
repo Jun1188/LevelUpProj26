@@ -92,98 +92,6 @@ public class SimulationSystem : MonoBehaviour
     }
 }
 
-// ─── 벨트 세그먼트 ──────────────────────────────────────────────
-
-/// <summary>
-/// 연속으로 연결된 벨트 체인을 하나의 유닛으로 처리.
-///
-/// 문제: 벨트 100개 체인 → 100번 Tick, 100번 MarkDirty
-/// 해결: 100개를 BeltSegment 1개로 통합 → 1번 Tick
-///
-/// 아이템 위치를 float 값으로 추적:
-///   0.0 = 세그먼트 입구
-///   N   = 세그먼트 출구 도달 (N = 벨트 수)
-///
-/// 앞에서부터 처리하면 앞 아이템이 뒤 아이템의 진입을 막는
-/// 실제 컨베이어 벨트 물리를 재현할 수 있다.
-/// </summary>
-public class BeltSegment
-{
-    public readonly List<BuildingInstance> Belts = new();
-    public float SpeedTilesPerSec = 2f;
-
-    // (아이템, 세그먼트 내 float 위치)
-    readonly List<(ItemDataSO item, float pos)> _items = new();
-
-    public bool                                   HasItems => _items.Count > 0;
-    public IReadOnlyList<(ItemDataSO, float pos)> Items    => _items;
-    public int                                    BeltCount => Belts.Count;
-
-    const float Spacing = 0.5f;
-
-    /// <summary>입구(pos 0)에 새 아이템을 올릴 공간이 있는가.</summary>
-    public bool CanAcceptAtEntry()
-        => _items.Count == 0 || _items[^1].pos >= Spacing;
-
-    /// <summary>입구에 올리기 성공하면 true. 막혀 있으면 false(버퍼 유지용).</summary>
-    public bool TryAddItem(ItemDataSO item)
-    {
-        if (!CanAcceptAtEntry()) return false;
-        _items.Add((item, 0f));
-        return true;
-    }
-
-    [Obsolete("Use TryAddItem() instead.")]
-    public void AddItem(ItemDataSO item) => _items.Add((item, 0f));
-
-    /// <summary>
-    /// 아이템 이동 처리. BeltBehavior.Tick()에서 호출.
-    /// 뒤에서 앞으로 순회해야 앞 아이템 블로킹을 올바르게 처리한다.
-    /// </summary>
-    public void Tick(float dt)
-    {
-        float advance = SpeedTilesPerSec * dt;
-
-        for (int i = 0; i < _items.Count; i++)
-        {
-            var (item, pos) = _items[i];
-            float newPos = pos + advance;
-
-            // 바로 앞(출구 쪽 = index i-1) 아이템과 0.5칸 간격 유지
-            if (i - 1 >= 0)
-                newPos = Mathf.Min(newPos, _items[i - 1].pos - 0.5f);
-
-            newPos = Mathf.Max(newPos, pos);   // 역주행 방지 (음수/뒤로 밀림 차단)
-
-            if (newPos >= BeltCount)
-            {
-                var exitBelt = Belts[^1];
-                bool sent = false;
-                foreach (var conn in exitBelt.OutputConnections)
-                {
-                    if (!conn.To.Inventory.TryAddInput(item)) continue;
-                    SimulationSystem.Instance.MarkDirty(conn.To);
-                    _items.RemoveAt(i);
-                    i--;                       // ★ RemoveAt 후 인덱스 보정 (다음 요소 건너뛰기 방지)
-                    sent = true;
-                    break;
-                }
-                if (!sent) _items[i] = (item, BeltCount - 0.01f);
-            }
-            else
-            {
-                _items[i] = (item, newPos);
-            }
-        }
-
-        // 아이템이 남아 있으면 이동을 계속해야 하므로 재등록
-        if (HasItems)
-            foreach (var b in Belts)
-                SimulationSystem.Instance.MarkDirty(b);
-    }
-}
-
-
 
 // ─── 행동 인터페이스 ────────────────────────────────────────────
 
@@ -259,11 +167,8 @@ public static class MiningService
 // ─── 벨트 행동 ──────────────────────────────────────────────────
 
 /// <summary>
-/// 컨베이어 벨트. BeltSegment에 속하면 세그먼트가 처리하고 여기서는 위임만.
-/// 세그먼트에 속하지 않은 단독 벨트는 직접 Push.
+/// 컨베이어 벨트.
 /// </summary>
-// --- BeltBehavior 클래스 전체 교체 ---
-
 public class BeltBehavior : IBuildingBehavior
 {
     readonly BuildingInstance _b;
@@ -272,38 +177,23 @@ public class BeltBehavior : IBuildingBehavior
 
     public void Tick(float dt)
     {
-        var seg = BeltSegmentManager.Instance?.GetSegment(_b);
+        var seg = BeltSegmentManager.Instance.EnsureSegment(_b);  // 항상 세그먼트 존재
 
-        // 1. 내 입력 버퍼(Input)에 들어온 광석을 꺼내서 물리적인 컨베이어 벨트(Segment) 위로 올린다.
+        // 입력 버퍼 아이템을 벨트 위로 (입구가 막혔으면 받아준 만큼만 소비)
         foreach (var (item, count) in _b.Inventory.InputSnapshot)
         {
-            if (seg != null)
-            {
-                int moved = 0;
-                while (moved < count && seg.TryAddItem(item))   // 막히면 루프 종료
-                    moved++;
-
-                if (moved > 0) _b.Inventory.TryConsumeInput(item, moved); // 받아준 만큼만 소비
-                                                                          // moved < count 면 나머지는 버퍼에 남아 백프레셔로 작용
-            }
-            else
-            {
-                for (int i = 0; i < count; i++)
-                {
-                    if (_b.TryPushOutput(item))
-                        _b.Inventory.TryConsumeInput(item, 1);
-                    else
-                        break;   // ★ 단독 벨트도 막히면 멈춰야 함 (기존엔 실패해도 계속 돌았음)
-                }
-            }
+            int moved = 0;
+            while (moved < count && seg.TryAddItem(item)) moved++;
+            if (moved > 0) _b.Inventory.TryConsumeInput(item, moved);
         }
 
-        // 2. 물리 벨트 이동 시뮬레이션 
-        // (세그먼트에 속한 벨트 100개 중 1번째 벨트가 대표로 1번만 계산함 - 최적화)
-        if (seg != null && seg.Belts.Count > 0 && seg.Belts[0] == _b)
-        {
+        // 대표 벨트(입구 = 마지막 인덱스)가 세그먼트 전체를 1번만 구동
+        if (seg.BeltCount > 0 && seg.Belts[^1] == _b)
             seg.Tick(dt);
-        }
+
+        // 입구가 막혀 버퍼가 안 비면 다음 틱에 재시도
+        if (_b.Inventory.InputSnapshot.Count > 0)
+            SimulationSystem.Instance.MarkDirty(_b);
     }
 }
 

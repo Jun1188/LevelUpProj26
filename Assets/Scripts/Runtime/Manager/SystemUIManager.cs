@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
+
 public class SystemUIManager : MonoBehaviour
 {
     public static SystemUIManager Instance { get; private set; }
@@ -24,7 +25,7 @@ public class SystemUIManager : MonoBehaviour
 
     private void Start()
     {
-        if (pausePanel != null) pausePanel.SetActive(false);
+        if (pausePanel != null) pausePanel.SetActive(isPaused);
         
         // 🎮 게임 시작 시 GameManager 데이터 기반으로 UI 첫 세팅
         UpdateHUD();
@@ -55,7 +56,7 @@ public class SystemUIManager : MonoBehaviour
     // ====================================================================
     // ⏸️ ESC 일시정지 메뉴 토글
     // ====================================================================
-    public void OnTogglePauseMenu()
+    public void TogglePauseMenu()
     {
         isPaused = !isPaused;
         pausePanel.SetActive(isPaused);

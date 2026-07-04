@@ -70,6 +70,10 @@ public class GameManager : MonoBehaviour
                 // === 3. 기획 사항: 밤에서 아침이 될 때 세이브 함수 호출 ===
                 SaveGame();
             }
+            if (SystemUIManager.Instance != null)
+            {
+                SystemUIManager.Instance.UpdateHUD(); // UI야, 내 데이터 바뀌었으니 다시 그려라!
+            }
         }
     }
 

@@ -382,9 +382,9 @@ public class InventoryManager : MonoBehaviour
         {
             if (ui.gameObject.activeSelf) ui.RefreshAllUI();
         }
-
+        
         // 3. 상시 핫바 UI 새로고침
-        if (HotbarUI.Instance != null && HotbarUI.Instance.gameObject.activeSelf)
+        if (HotbarUI.Instance != null)
         {
             HotbarUI.Instance.RefreshHotbar();
         }

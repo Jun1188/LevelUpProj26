@@ -385,77 +385,71 @@ public class PlayerController : Entity
         if (InventoryManager.Instance != null && playerInventory != null) 
             InventoryManager.Instance.CheckWeaponEquip(playerInventory);
     }
-    private void DropActiveHotbarItem()
-    {
-        int currentSlot = currentHotbarIndex; // 현재 활성화된 핫바 인덱스
+    private void DropActiveHotbarItem() 
+    { 
+        int currentSlot = currentHotbarIndex; 
+        if (playerInventory == null || playerInventory.slots.Length <= currentSlot) return; 
 
-        if (playerInventory == null || playerInventory.slots.Length <= currentSlot) return;
+        ItemStack hotbarSlot = playerInventory.slots[currentSlot]; 
+        if (hotbarSlot == null || hotbarSlot.item == null || hotbarSlot.amount <= 0) return; 
 
-        ItemStack hotbarSlot = playerInventory.slots[currentSlot];
-        if (hotbarSlot == null || hotbarSlot.item == null || hotbarSlot.amount <= 0) return;
+        ItemDataSO item = hotbarSlot.item; 
+        Vector3 spawnPos = transform.position + playerCamera.forward * 1.5f + Vector3.up * 0.5f; 
 
-        // 버릴 아이템 정보 캐싱
-        ItemDataSO item = hotbarSlot.item;
+        // 1. 루트 오브젝트 생성 및 레이어 설정
+        GameObject dropObj = new($"Dropped_{item.name}"); 
+        dropObj.transform.position = spawnPos; 
+
+        int interactableLayerIndex = LayerMask.NameToLayer("Interactable"); 
+        if (interactableLayerIndex != -1) { 
+            dropObj.layer = interactableLayerIndex; 
+        } 
+
+        // 2. 물리(Rigidbody) 설정
+        Rigidbody itemRb = dropObj.AddComponent<Rigidbody>(); 
+        itemRb.useGravity = true; 
+        itemRb.constraints = RigidbodyConstraints.FreezeRotation; 
 
         // ====================================================================
-        // 🔥 [수정] 프리팹 없이 코드로 3D 드롭 아이템 오브젝트 실시간 동적 생성
+        // [핵심] 한 오브젝트에 콜라이더 2개 모두 생성!
         // ====================================================================
-        
-        // 1. 플레이어 위치 기준 정면 1.5m 앞, 약간 위쪽을 스폰 위치로 지정
-        Vector3 spawnPos = transform.position + playerCamera.forward * 1.5f + Vector3.up * 0.5f;
+        // ① 바닥 충돌용 고체 콜라이더 (isTrigger = false)
+        BoxCollider solidCol = dropObj.AddComponent<BoxCollider>(); 
+        solidCol.size = new Vector3(0.3f, 0.3f, 0.3f); 
+        solidCol.isTrigger = false; 
 
-        // 2. 빈 게임 오브젝트를 동적 생성하고 이름 부여
-        GameObject dropObj = new($"Dropped_{item.name}");
-        dropObj.transform.position = spawnPos;
+        // ② 플레이어 획득 감지용 센서 콜라이더 (isTrigger = true)
+        BoxCollider triggerCol = dropObj.AddComponent<BoxCollider>(); 
+        triggerCol.size = new Vector3(1.5f, 1.5f, 1.5f); 
+        triggerCol.isTrigger = true; 
+        // ====================================================================
 
-        // 레이어를 "Interactable"로 설정 (InventoryManager와 동일)
-        int interactableLayerIndex = LayerMask.NameToLayer("Interactable");
-        if (interactableLayerIndex != -1)
-        {
-            dropObj.layer = interactableLayerIndex;
-        }
-        else
-        {
-            Debug.LogWarning("[레이어 경고] 프로젝트에 'Interactable' 레이어가 존재하지 않습니다.");
-        }
-
-        // 3. 물리(Rigidbody) 및 충돌체(BoxCollider) 추가
-        Rigidbody rb = dropObj.AddComponent<Rigidbody>();
-        BoxCollider col = dropObj.AddComponent<BoxCollider>();
-        col.size = new Vector3(0.4f, 0.4f, 0.4f); // 적당한 크기의 히트박스
-
-        // 4. 비주얼(마인크래프트처럼 둥둥 떠서 도는 아이콘) 자식 생성
-        GameObject visualObj = new GameObject("Visual");
+        // 3. 비주얼(둥둥 떠서 도는 아이콘) 자식 생성 (얘는 이제 순수 그래픽 역할만)
+        GameObject visualObj = new("Visual");
         visualObj.transform.SetParent(dropObj.transform);
-        visualObj.transform.localPosition = Vector3.zero;
+        visualObj.transform.localPosition = Vector3.zero; 
+        visualObj.layer = dropObj.layer; 
 
-        SpriteRenderer sr = visualObj.AddComponent<SpriteRenderer>();
-        sr.sprite = item.icon; // 아이템 고유 아이콘 매핑
-        visualObj.AddComponent<ItemRotator>(); // 빙글빙글 회전 컴포넌트 추가
+        SpriteRenderer sr = visualObj.AddComponent<SpriteRenderer>(); 
+        sr.sprite = item.icon; 
+        visualObj.AddComponent<ItemRotator>(); 
 
-        // 5. 상호작용 스크립트 추가 및 데이터 주입 (Q키는 1개씩 던지므로 수량은 1)
-        DroppedItem droppedScript = dropObj.AddComponent<DroppedItem>();
-        droppedScript.Setup(item, 1, sr);
+        // 4. 상호작용 데이터 주입 및 물리 힘 전달
+        DroppedItem droppedScript = dropObj.AddComponent<DroppedItem>(); 
+        droppedScript.Setup(item, 1, sr); 
 
-        // 6. 플레이어가 바라보는 정면 방향으로 툭 던지는 물리적 힘(Impulse) 부여
-        rb.AddForce(playerCamera.forward * 3.5f, ForceMode.Impulse);
+        itemRb.AddForce(playerCamera.forward * 3.5f, ForceMode.Impulse); 
+        Debug.Log($"[핫바 드롭] {item.name} 아이템을 1개 던졌습니다."); 
 
-        Debug.Log($"[핫바 드롭] {item.name} 아이템을 1개 던졌습니다.");
+        // 5. 인벤토리 데이터 차감 및 UI 새로고침
+        hotbarSlot.amount--; 
+        if (hotbarSlot.amount <= 0) { 
+            playerInventory.slots[currentSlot] = null; 
+        } 
 
-        // ====================================================================
-        // 7. 백엔드 데이터 차감 및 UI 새로고침
-        // ====================================================================
-        hotbarSlot.amount--;
-        if (hotbarSlot.amount <= 0)
-        {
-            playerInventory.slots[currentSlot] = null;
-        }
-
-        // InventoryManager에 만들어 두신 만능 UI/무기 통합 갱신 함수를 호출합니다!
-        if (InventoryManager.Instance != null)
-        {
-            InventoryManager.Instance.RefreshAllGameUIs(playerInventory);
-        }
+        if (InventoryManager.Instance != null) { 
+            InventoryManager.Instance.RefreshAllGameUIs(playerInventory); 
+        } 
     }
 
     #endregion

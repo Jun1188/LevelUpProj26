@@ -1,13 +1,14 @@
-using com.IvanMurzak.ReflectorNet.Utils;
 using UnityEngine;
 
-public static class PlacementBridge // MonoBehaviour 상속 제거
+/// <summary>
+/// 건물 배치/제거 시 시스템 호출 순서(GridRegistry → BuildingGraph → SimulationSystem)를
+/// 한 곳에 캡슐화한 정적 진입점.
+/// </summary>
+public static class PlacementBridge
 {
     public static BuildingInstance Place(BuildingDataSO so, Vector2Int origin, Vector3 pos = default, int rotSteps = 0)
     {
-        // ⚠️ 주의: 이전 답변에서 언급한 크래시 방지를 위해 임시 프리팹 생성 로직 추가
         GameObject go;
-        Debug.Log(so.prefab);
         if (so.prefab != null) go = Object.Instantiate(so.prefab, pos, Quaternion.Euler(0, rotSteps * 90f, 0));
         else go = new GameObject(so.name); // 프리팹 누락 시 크래시 방지용 빈 오브젝트
 
@@ -30,6 +31,9 @@ public static class PlacementBridge // MonoBehaviour 상속 제거
     public static void Remove(BuildingInstance instance)
     {
         if (instance == null) return;
+
+        // 0. 제거 표식 — 같은 프레임에 dirty 큐에 남아 있어도 Tick되지 않게
+        instance.IsRemoved = true;
 
         // 1. SimulationSystem에서 제거
         SimulationSystem.Instance.Unregister(instance);

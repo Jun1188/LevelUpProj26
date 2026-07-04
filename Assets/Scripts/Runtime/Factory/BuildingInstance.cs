@@ -1,6 +1,13 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>
+/// 씬에 배치된 건물의 런타임 인스턴스.
+/// BuildingDataSO = 설계도 (공유됨),  BuildingInstance = 실물 (각자 독립적 상태).
+///
+/// 연결 목록(InputConnections, OutputConnections)은 BuildingGraph가 채운다.
+/// 행동(IBuildingBehavior)은 Strategy 패턴으로 카테고리별로 분기된다.
+/// </summary>
 public class BuildingInstance : MonoBehaviour
 {
     // 불변 데이터 (Initialize 이후 변경 안 됨)
@@ -11,6 +18,10 @@ public class BuildingInstance : MonoBehaviour
     // 런타임 상태
     public BuildingInventory Inventory { get; private set; }
     public bool IsDirty { get; set; } // SimulationSystem이 관리
+
+    // PlacementBridge.Remove가 설정. Destroy는 프레임 끝에 실행되므로,
+    // 그 사이에 시뮬레이션이 이 건물을 되살리지 못하도록 막는 표식.
+    public bool IsRemoved { get; set; }
 
     // 연결 목록 — BuildingGraph가 OnPlaced/OnRemoved 시 수정
     public readonly List<BuildingConnection> InputConnections = new();
@@ -54,5 +65,15 @@ public class BuildingInstance : MonoBehaviour
             return true;
         }
         return false; // 모든 출력 막힘
+    }
+
+    /// <summary>
+    /// 이 건물의 입력 버퍼에 자리가 생겼음을 상류에 알린다.
+    /// 출력이 막혀 정지(stall)해 있던 상류 건물이 다음 틱에 재시도한다.
+    /// </summary>
+    public void NotifyUpstream()
+    {
+        foreach (var c in InputConnections)
+            SimulationSystem.Instance.MarkDirty(c.From);
     }
 }

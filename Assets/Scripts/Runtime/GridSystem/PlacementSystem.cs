@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using VInspector;
 
 /// <summary>
 /// 그리드 기반 배치/철거 컨트롤러
@@ -37,7 +36,7 @@ public class PlacementSystem : MonoBehaviour
     [Tooltip("철거 모드에서 대상 건물에 입힐 하이라이트 머티리얼 (빨강 반투명 추천).")]
     [SerializeField] private Material demolishHighlightMat;
 
-    [SerializeField] private GridSystem grid;
+    private GridSystem grid; // Awake에서 cellSize/gridOrigin으로 생성
 
     private BuildMode mode = BuildMode.None;
 
@@ -144,7 +143,7 @@ public class PlacementSystem : MonoBehaviour
         if (!TryGetGroundPoint(out Vector3 cursorPoint)) return;
 
         Vector2Int origin = grid.WorldToGrid(cursorPoint);
-        Vector2Int size = RotatedSize(current.size, rotation);
+        Vector2Int size = current.GetRotatedSize(rotation);
 
         bool heightOk = TryGetFootprintHeight(origin, size, out float groundY);
 
@@ -162,7 +161,7 @@ public class PlacementSystem : MonoBehaviour
 
     private void Place(Vector2Int origin, Vector3 pos)
     {
-        var placed = PlacementBridge.Place(current, origin, pos, rotation);
+        PlacementBridge.Place(current, origin, pos, rotation);
     }
 
     // ===================== 철거 모드 =====================
@@ -286,9 +285,6 @@ public class PlacementSystem : MonoBehaviour
             for (int z = 0; z < size.y; z++)
                 yield return origin + new Vector2Int(x, z);
     }
-
-    private Vector2Int RotatedSize(Vector2Int size, int rot)
-        => (rot % 2 == 0) ? size : new Vector2Int(size.y, size.x);
 
     private bool CanPlace(Vector2Int origin, Vector2Int size)
         => GetCells(origin, size).All(c => !GridRegistry.Instance.IsOccupied(c));

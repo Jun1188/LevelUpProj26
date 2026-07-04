@@ -10,12 +10,13 @@ using UnityEngine;
 //  포함:
 //    BuildingInventory  — 건물별 입출력 아이템 버퍼
 //    BuildingConnection — 두 건물 간의 단방향 연결
-//    BuildingInstance   — 씬에 배치된 건물의 런타임 상태
-//    GridRegistry       — 좌표 → BuildingInstance O(1) 조회
-//                         (배치 로직은 없음, 다른 파트가 채워 넣는다)
 //    BuildingGraph      — 포트 매칭으로 연결 자동 생성/해제
 //
-//  외부에서 건물을 배치할 때 호출 순서:
+//  관련 (별도 파일):
+//    BuildingInstance   — 씬에 배치된 건물의 런타임 상태
+//    GridRegistry       — 좌표 → BuildingInstance O(1) 조회 (GridSystem 폴더)
+//
+//  외부에서 건물을 배치할 때 호출 순서 (PlacementBridge가 담당):
 //    1. GridRegistry.Add(pos, instance)     ← 점유 셀 전부
 //    2. BuildingGraph.Instance.OnPlaced(instance)
 //    3. SimulationSystem.Instance.Register(instance)
@@ -90,19 +91,6 @@ public class BuildingConnection
     public BuildingInstance From, To;
     public PortDefinition   FromPort, ToPort;
 }
-
-// ─── 건물 런타임 ────────────────────────────────────────────────
-
-/// <summary>
-/// 씬에 배치된 건물의 런타임 인스턴스.
-/// BuildingDataSO = 설계도 (공유됨),  BuildingInstance = 실물 (각자 독립적 상태).
-///
-/// 연결 목록(InputConnections, OutputConnections)은 BuildingGraph가 채운다.
-/// 행동(IBuildingBehavior)은 Strategy 패턴으로 카테고리별로 분기된다.
-/// </summary>
-
-
-
 
 // ─── 건물 그래프 ────────────────────────────────────────────────
 
@@ -211,5 +199,11 @@ public class BuildingGraph : MonoBehaviour
         c.From.OutputConnections.Add(c);
         c.To.InputConnections.Add(c);
         BeltSegmentManager.Instance?.OnNewConnection(c);
+
+        // 새 연결 = 상태 변화. 출력이 막혀 정지(stall)해 있던 건물이
+        // 새로 생긴 하류로 밀어낼 수 있도록 양단을 깨운다.
+        // (이게 없으면 "마이너 먼저 설치 → 버퍼 가득 → 벨트 연결" 시 영구 정지)
+        SimulationSystem.Instance?.MarkDirty(c.From);
+        SimulationSystem.Instance?.MarkDirty(c.To);
     }
 }

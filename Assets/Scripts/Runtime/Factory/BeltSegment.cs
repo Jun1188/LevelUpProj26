@@ -85,8 +85,9 @@ public class BeltSegment
             }
         }
 
+        // 아이템이 남아 있는 동안은 대표(입구) 벨트만 재등록해 세그먼트를 계속 구동.
+        // 세그먼트당 매 틱 1건 — 벨트 수와 무관.
         if (HasItems)
-            foreach (var b in Belts)
-                SimulationSystem.Instance.MarkDirty(b);
+            SimulationSystem.Instance.MarkDirty(Belts[^1]);
     }
 }

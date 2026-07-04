@@ -38,6 +38,10 @@ public class BeltSegmentManager : MonoBehaviour
         if (c.From.Data.category != BuildingCategory.Transport) return;
         if (c.To.Data.category != BuildingCategory.Transport) return;
 
+        // 세그먼트는 1자 체인만 표현한다. 합류/분배는 전용 건물(비 Transport)이
+        // 담당하기로 했으므로, 벨트가 여러 벨트와 이어지는 경우는 병합하지 않는다.
+        if (c.From.OutputConnections.Count > 1 || c.To.InputConnections.Count > 1) return;
+
         var sf = EnsureSegment(c.From);   // 상류
         var st = EnsureSegment(c.To);     // 하류
         if (sf == st) return;             // 이미 같은 세그먼트(루프) → 무시
@@ -58,6 +62,9 @@ public class BeltSegmentManager : MonoBehaviour
             sf.AddItemAt(item, pos + fromCount);
 
         _segs.Remove(st);
+
+        // 병합된 세그먼트에 아이템이 있으면 새 대표(입구) 벨트가 구동을 이어받는다
+        if (sf.HasItems) SimulationSystem.Instance.MarkDirty(sf.Belts[^1]);
     }
 
     /// <summary>벨트 철거 시 세그먼트를 상류·하류로 정밀 분할. 제거 벨트 위 아이템은 폐기.</summary>
@@ -80,7 +87,7 @@ public class BeltSegmentManager : MonoBehaviour
             foreach (var (item, pos) in seg.Items)
                 if (pos >= n - k) d.AddItemAt(item, pos - (n - k));
             _segs.Add(d);
-            if (d.HasItems) foreach (var belt in d.Belts) SimulationSystem.Instance.MarkDirty(belt);
+            if (d.HasItems) SimulationSystem.Instance.MarkDirty(d.Belts[^1]); // 대표만 깨움
         }
 
         // 상류 조각: Belts[k+1..n-1], pos 구간 [0, n-1-k] → pos 유지
@@ -91,7 +98,7 @@ public class BeltSegmentManager : MonoBehaviour
             foreach (var (item, pos) in seg.Items)
                 if (pos < n - 1 - k) u.AddItemAt(item, pos);
             _segs.Add(u);
-            if (u.HasItems) foreach (var belt in u.Belts) SimulationSystem.Instance.MarkDirty(belt);
+            if (u.HasItems) SimulationSystem.Instance.MarkDirty(u.Belts[^1]); // 대표만 깨움
         }
 
         // (n-1-k ≤ pos < n-k) 구간 = 제거 벨트 위 아이템 → 복사 안 함 = 폐기

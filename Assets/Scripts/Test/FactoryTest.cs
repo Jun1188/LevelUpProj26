@@ -193,12 +193,15 @@ public class FactoryTest : MonoBehaviour
                 int n = seg.Belts.Count;
                 if (n == 0) continue;
 
+                // 철거 직후 프레임에는 파괴된 벨트가 남아 있을 수 있음
+                if (seg.Belts[0] == null || seg.Belts[n - 1] == null) continue;
+
                 // Belts[0] / Belts[^1] 위치에 큰 마커 (입구·출구 식별용)
                 Gizmos.color = Color.red; Gizmos.DrawSphere(seg.Belts[0].transform.position + Vector3.up, 0.25f);   // Belts[0]
                 Gizmos.color = Color.blue; Gizmos.DrawSphere(seg.Belts[n - 1].transform.position + Vector3.up, 0.25f); // Belts[^1]
                 Gizmos.color = Color.yellow;
 
-                if (seg == null || !seg.HasItems) continue;
+                if (!seg.HasItems) continue;
 
                 foreach (var (item, pos) in seg.Items)
                 {

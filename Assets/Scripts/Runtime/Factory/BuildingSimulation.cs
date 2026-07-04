@@ -46,6 +46,9 @@ public class SimulationSystem : MonoBehaviour
     [Tooltip("초당 틱 수. 10이면 0.1초마다 처리.")]
     [SerializeField] float _tps = 10f;
 
+    [Tooltip("프레임 드랍 후 한 프레임에 몰아서 따라잡을 수 있는 최대 틱 수.")]
+    [SerializeField] int _maxCatchUpTicks = 5;
+
     readonly Queue<BuildingInstance>   _queue = new();
     readonly HashSet<BuildingInstance> _inQ   = new(); // 중복 등록 방지 O(1)
 
@@ -115,9 +118,19 @@ public class SimulationSystem : MonoBehaviour
     void Update()
     {
         _timer += Time.deltaTime;
-        if (_timer < _interval) return;
-        _timer -= _interval;
-        RunTick();
+
+        // 밀린 틱을 따라잡되, 프레임당 한도를 둬서 저사양에서
+        // "틱 몰아치기 → 프레임 더 느려짐 → 더 밀림" 나선을 방지한다.
+        int ticks = 0;
+        while (_timer >= _interval && ticks < Mathf.Max(1, _maxCatchUpTicks))
+        {
+            _timer -= _interval;
+            RunTick();
+            ticks++;
+        }
+
+        // 한도를 넘긴 빚은 버린다 (다음 프레임에 처리할 1틱분만 유지).
+        if (_timer > _interval) _timer = _interval;
     }
 
     void RunTick()

@@ -175,6 +175,15 @@ public class PlayerController : Entity
         DropActiveHotbarItem();
     }
 
+    public void OnTogglePauseMenu(InputValue value)
+    {
+        if (!value.isPressed) return;
+        if (SystemUIManager.Instance != null)
+        {
+            SystemUIManager.Instance.TogglePauseMenu();
+        }
+    }
+
     #endregion
 
     #region [4. Core Mechanics - Movement & Camera]

@@ -244,38 +244,42 @@ public class FactoryScenarioTests : MonoBehaviour
     static BuildingInstance Place(BuildingDataSO so, int x, int y, int rot = 0)
         => PlacementBridge.Place(so, new Vector2Int(x, y), default, rot);
 
-    BuildingDataSO Miner(float ptime = 0.2f, int outBuf = 5) =>
-        MakeBuilding("TestMiner", BuildingCategory.Producer,
-            new[] { Port(false, Direction.East) }, ptime, outBuf: outBuf);
+    BuildingDataSO Miner(float ptime = 0.2f, int outBuf = 5)
+    {
+        var so = MakeBuilding<MinerDataSO>("TestMiner",
+            new[] { Port(false, Direction.East) }, outBuf: outBuf);
+        so.processingTime = ptime;
+        return so;
+    }
 
     BuildingDataSO Belt() =>
-        MakeBuilding("TestBelt", BuildingCategory.Transport,
+        MakeBuilding<BeltDataSO>("TestBelt",
             new[] { Port(true, Direction.West), Port(false, Direction.East) });
 
     BuildingDataSO Storage() =>
-        MakeBuilding("TestStorage", BuildingCategory.Storage,
+        MakeBuilding<StorageDataSO>("TestStorage",
             new[] { Port(true, Direction.West) }, inBuf: 50, outBuf: 50);
 
-    BuildingDataSO Assembler(RecipeDataSO recipe) =>
-        MakeBuilding("TestAssembler", BuildingCategory.Processor,
-            new[] { Port(true, Direction.West), Port(false, Direction.East) },
-            recipes: new[] { recipe });
+    BuildingDataSO Assembler(RecipeDataSO recipe)
+    {
+        var so = MakeBuilding<AssemblerDataSO>("TestAssembler",
+            new[] { Port(true, Direction.West), Port(false, Direction.East) });
+        so.availableRecipes = new[] { recipe };
+        return so;
+    }
 
     static PortDefinition Port(bool isInput, Direction dir) =>
         new() { IsInput = isInput, Direction = dir, LocalOffset = Vector2Int.zero };
 
-    BuildingDataSO MakeBuilding(string name, BuildingCategory cat, PortDefinition[] ports,
-        float ptime = 0.2f, int inBuf = 10, int outBuf = 5, RecipeDataSO[] recipes = null)
+    T MakeBuilding<T>(string name, PortDefinition[] ports, int inBuf = 10, int outBuf = 5)
+        where T : BuildingDataSO
     {
-        var so = ScriptableObject.CreateInstance<BuildingDataSO>();
-        so.name             = name;
-        so.size             = Vector2Int.one;
-        so.category         = cat;
-        so.ports            = ports;
-        so.processingTime   = ptime;
-        so.maxInputBuffer   = inBuf;
-        so.maxOutputBuffer  = outBuf;
-        so.availableRecipes = recipes;
+        var so = ScriptableObject.CreateInstance<T>();
+        so.name            = name;
+        so.size            = Vector2Int.one;
+        so.ports           = ports;
+        so.maxInputBuffer  = inBuf;
+        so.maxOutputBuffer = outBuf;
         _createdSOs.Add(so);
         return so;
     }

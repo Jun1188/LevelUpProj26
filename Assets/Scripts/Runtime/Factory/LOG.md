@@ -97,3 +97,31 @@
 - **시나리오**: ① 기본 체인 운반 ② 설치 순서 무관(stall 데드락 회귀) ③ 막힌 체인 무유실·정지 ④ 중간 철거 분할·복구 ⑤ 회전 배치 연결 ⑥ 어셈블러 조합 체인
 - **NUnit이 아닌 이유**: 테스트 asmdef는 Assembly-CSharp을 참조할 수 없는데, Runtime↔Test 코드가 상호 참조 중(`PlayerController→Entity`, `InventoryUI→ItemSocket`)이라 어셈블리 분리 불가. 심/뷰 분리 후 EditMode NUnit으로 이전 예정
 - **부수 수정**: 틱 유실 커밋에서 `_maxCatchUpTicks` 필드 선언 누락 발견 → 추가 (컴파일 에러였음)
+
+---
+
+## 2026-07-05 — 재설계 1단계: SO 상속 분리 (god-SO 해체)
+
+- **문제**: `BuildingDataSO` 하나에 모든 건물 종류의 필드가 뭉쳐 있고(`processingTime`은 마이너만, `availableRecipes`는 어셈블러만 사용), `category` enum → `BuildingBehaviorFactory` switch로 행동 분기 (새 건물마다 enum·switch·SO 전부 수정 필요 — OCP 위반)
+- **변경**:
+  - `BuildingDataSO`를 abstract 베이스로: 공통 필드(name/size/ports/버퍼) + `abstract CreateBehavior(instance)` + 표시용 `abstract Category`
+  - 서브클래스 4종 신설 — **각 파일에 SO와 행동을 함께 배치** (팀 컨벤션):
+    - `MinerDataSO.cs` — SO(processingTime) + `MinerBehavior` + `MiningService`
+    - `BeltDataSO.cs` — SO(speedTilesPerSec 신설) + `BeltBehavior`
+    - `AssemblerDataSO.cs` — SO(availableRecipes) + `AssemblerBehavior`
+    - `StorageDataSO.cs` — SO + `StorageBehavior`
+  - `IBuildingBehavior`는 `BuildingDataSO.cs`로 이동
+  - `BuildingBehaviorFactory`·serialized `category` 필드 삭제. `BuildingInstance.Initialize`는 `data.CreateBehavior(this)` 호출
+  - `BeltSegmentManager`의 Transport 검사 → `is BeltDataSO`. 벨트 속도는 하드코딩(2f) 대신 `BeltDataSO.speedTilesPerSec`에서 읽음
+  - `BuildingSimulation.cs`는 `SimulationSystem`만 남음
+  - 기존 `.asset` 5개의 `m_Script` GUID를 대응 서브클래스로 리포인트 (MinorSO→Miner, Belt/커브×2→Belt, Assembler→Assembler). 기존 필드값(processingTime, availableRecipes) 그대로 보존됨
+- **효과**: 새 건물 종류 추가 = `XxxDataSO.cs` 파일 1개(SO+행동)만 추가하면 끝, 기존 코드 무수정
+- **주의**: 에셋 생성 메뉴가 Factory/Building → Factory/Miner·Belt·Assembler·Storage로 분화됨. Storage 에셋은 아직 없으니 필요 시 새로 생성
+- **특성화 테스트 6/6 통과 확인** — 재설계 후 동작 보존 검증됨
+
+---
+
+## 2026-07-05 — BuildingCategory 삭제
+
+- 로직 분기가 전부 타입 기반(`CreateBehavior`, `is BeltDataSO`)으로 대체돼 표시용 1곳만 남았기에 enum과 `Category` 프로퍼티 삭제. FactoryTest는 `Data.GetType().Name` 표시
+- **남은 TODO (팀 결정)**: 속도가 다른 벨트는 세그먼트 병합 금지 — 현재는 병합 시 상류 세그먼트 속도로 통일되어 설치 순서 의존적. 고속 벨트 티어 추가 전에 필수. 가드 한 줄이 `BeltSegmentManager.OnNewConnection`에 TODO 주석으로 준비돼 있음

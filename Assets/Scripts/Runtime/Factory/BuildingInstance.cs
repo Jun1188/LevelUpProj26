@@ -40,7 +40,7 @@ public class BuildingInstance : MonoBehaviour
         Origin = origin;
         RotationSteps = rotSteps;
         Inventory = new BuildingInventory(data.maxInputBuffer, data.maxOutputBuffer);
-        _behavior = BuildingBehaviorFactory.Create(data.category, this);
+        _behavior = data.CreateBehavior(this);
     }
 
     /// <summary>회전이 적용된 실제 포트 목록. BuildingGraph가 이걸 사용한다.</summary>

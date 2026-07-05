@@ -13,9 +13,8 @@ using UnityEngine;
 
 // ─── 기본 열거형 ────────────────────────────────────────────────
 
-public enum Direction        { North, East, South, West }
-public enum BuildingCategory { Producer, Transport, Processor, Storage, Utility }
-public enum ItemType         { Ore, Ingot, Component, Fuel, Misc, Weapon, Helmet, Chestplate, Boots }
+public enum Direction { North, East, South, West }
+public enum ItemType  { Ore, Ingot, Component, Fuel, Misc, Weapon, Helmet, Chestplate, Boots }
 
 // ─── 방향 헬퍼 ─────────────────────────────────────────────────
 
@@ -67,14 +66,35 @@ public class PortDefinition
     public ItemType[] AcceptedTypes;  // null 또는 빈 배열 = 모든 타입 허용
 }
 
+// ─── 행동 인터페이스 ────────────────────────────────────────────
+
+public interface IBuildingBehavior
+{
+    /// <summary>
+    /// SimulationSystem이 이 건물이 깨어 있는 틱에 호출.
+    /// (MarkDirty로 등록됐거나 ScheduleWake 예약 시각이 됐을 때)
+    /// </summary>
+    void Tick(float dt);
+
+    /// <summary>
+    /// BuildingGraph.OnPlaced() 완료 후 1회 호출.
+    /// 이 시점에서는 InputConnections / OutputConnections가 모두 확정되어 있다.
+    /// 자원 조회, 레시피 결정 등 연결 기반 초기화에 사용.
+    /// </summary>
+    void OnAfterPlaced();
+}
+
 // ─── ScriptableObjects ──────────────────────────────────────────
 
 /// <summary>
-/// 건물 종류를 정의하는 ScriptableObject.
+/// 건물 종류를 정의하는 ScriptableObject의 공통 베이스.
 /// 씬에 배치된 건물 100개가 같은 SO 1개를 공유한다 (메모리 효율).
+///
+/// 건물 종류별 데이터·행동은 서브클래스가 정의한다:
+///   MinerDataSO / BeltDataSO / AssemblerDataSO / StorageDataSO
+/// 새 건물 종류 추가 = 서브클래스 SO + 행동 클래스 1쌍 (기존 코드 무수정).
 /// </summary>
-[CreateAssetMenu(fileName = "NewBuilding", menuName = "Factory/Building")]
-public class BuildingDataSO : ScriptableObject
+public abstract class BuildingDataSO : ScriptableObject
 {
     [Header("식별")]
     public new string    name;
@@ -85,19 +105,15 @@ public class BuildingDataSO : ScriptableObject
     [Header("그리드 크기")]
     public Vector2Int size = Vector2Int.one; // 타일 단위 (1×1, 2×1 등)
 
-    [Header("카테고리")]
-    public BuildingCategory category;
-
     [Header("포트 — 건물 간 연결의 핵심")]
     public PortDefinition[] ports;
-
-    [Header("레시피 / 처리 시간")]
-    public RecipeDataSO[]   availableRecipes;
-    public float            processingTime = 1f;
 
     [Header("버퍼 크기")]
     public int              maxInputBuffer  = 10;
     public int              maxOutputBuffer = 10;
+
+    /// <summary>이 건물의 런타임 행동 생성. BuildingInstance.Initialize에서 호출.</summary>
+    public abstract IBuildingBehavior CreateBehavior(BuildingInstance instance);
 
     // ── 회전 지원 (배치 시 사용, 상호작용 로직과 무관)
     //    4방향 포트 배열을 최초 요청 시 1회 계산해 캐싱한다.

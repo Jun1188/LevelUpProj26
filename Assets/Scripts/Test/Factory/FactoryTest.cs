@@ -57,7 +57,7 @@ public class FactoryTest : MonoBehaviour
         sb.AppendLine("--------------------------------------------------");
         sb.AppendLine("[ 건물 정보 ]");
         sb.AppendLine($"- 이름 : {building.Data.name}");
-        sb.AppendLine($"- 종류 : {building.Data.category}");
+        sb.AppendLine($"- 종류 : {building.Data.GetType().Name}");
         sb.AppendLine($"- 위치 : {building.Origin}");
         sb.AppendLine($"- 회전 : {building.RotationSteps}단계 ({building.RotationSteps * 90}도)");
         sb.AppendLine();

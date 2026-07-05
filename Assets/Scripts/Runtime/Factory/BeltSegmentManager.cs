@@ -23,6 +23,8 @@ public class BeltSegmentManager : MonoBehaviour
     {
         if (_map.TryGetValue(belt, out var s)) return s;
         var seg = new BeltSegment();
+        if (belt.Data is BeltDataSO beltData)
+            seg.SpeedTilesPerSec = beltData.speedTilesPerSec;
         seg.Belts.Add(belt);
         _map[belt] = seg;
         _segs.Add(seg);
@@ -35,12 +37,17 @@ public class BeltSegmentManager : MonoBehaviour
     /// <summary>벨트-벨트 연결 시 병합. From=상류, To=하류.</summary>
     public void OnNewConnection(BuildingConnection c)
     {
-        if (c.From.Data.category != BuildingCategory.Transport) return;
-        if (c.To.Data.category != BuildingCategory.Transport) return;
+        if (c.From.Data is not BeltDataSO) return;
+        if (c.To.Data is not BeltDataSO) return;
 
         // 세그먼트는 1자 체인만 표현한다. 합류/분배는 전용 건물(비 Transport)이
         // 담당하기로 했으므로, 벨트가 여러 벨트와 이어지는 경우는 병합하지 않는다.
         if (c.From.OutputConnections.Count > 1 || c.To.InputConnections.Count > 1) return;
+
+        // TODO(벨트 티어): 속도가 다른 벨트는 병합하지 않아야 한다.
+        //   지금은 병합 시 상류 세그먼트의 SpeedTilesPerSec만 살아남아, 혼합 속도 라인이
+        //   설치 순서에 따라 임의의 한 속도로 통일된다. 고속 벨트 추가 전에 아래 가드 활성화:
+        //   if (((BeltDataSO)c.From.Data).speedTilesPerSec != ((BeltDataSO)c.To.Data).speedTilesPerSec) return;
 
         var sf = EnsureSegment(c.From);   // 상류
         var st = EnsureSegment(c.To);     // 하류

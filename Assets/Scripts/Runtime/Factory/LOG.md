@@ -165,6 +165,22 @@
 
 ---
 
+## 2026-07-07 — 벨트 통합: 직선/L/R 에셋 3종 → 벨트 1종 + 배치 시 모양 결정
+
+- **문제**: 커브가 별도 SO라 (a) 플레이어가 3종을 오가며 배치해야 하고, (b) "같은 종류만 병합" 가드를 넣으면 코너마다 세그먼트가 끊김
+- **구조**: 모양(BeltShape: Straight/CurveL/CurveR)은 SO가 아니라 **배치 시점에 결정되는 인스턴스 상태**
+  - `BuildingInstance.PortOverride` 신설 — null이면 SO 포트, 벨트는 `BeltDataSO.BuildPorts(shape, rot)` 주입 (12조합 캐시)
+  - `BeltDataSO`에 커브 프리팹 2개 필드 — 어떤 메시를 보여줄지는 뷰 관심사
+  - `PlacementBridge.Place`에 portOverride/prefabOverride 옵션 파라미터
+- **배치 UX**: **T키**로 직선/L/R 수동 순환 (이웃 기반 자동 판별은 구현했다가 제거 — 단순함 우선, 필요해지면 DetectBeltShape를 git 히스토리에서 복원)
+- **병합 가드**: `c.From.Data != c.To.Data`면 병합 안 함 — **같은 벨트 에셋끼리만**. 속도 비교 가드 TODO는 이걸로 종결 (고속 벨트 = 다른 에셋 = 경계에서 자동 분리, 아이템은 버퍼 push로 통과)
+- **에셋**: BeltLCurve/BeltRCurve 삭제, 커브 프리팹 참조는 Belt.asset으로 이식
+- **한계 (TODO)**: 배치 후 이웃이 바뀌어도 모양이 자동 재계산되지 않음 (Factorio식 re-curve는 연결 재평가 시스템 필요). 당장은 재배치로 해결
+- **주의**: 씬의 PlacementSystem buildingDataList에 남은 LCurve/RCurve 참조는 Missing이 되므로 제거 필요. 커브 프리팹의 기본 방향이 "출력=동쪽" 기준과 다르면 프리팹 메시를 회전시켜 맞출 것
+- 테스트: S7(커브 코너 체인 — 커브 포함 단일 세그먼트 병합 + 운반) 추가, 벨트 SO를 시나리오 간 공유하도록 변경
+
+---
+
 ## 2026-07-06 — TagSO 철회
 
 - 도입 근거였던 용처 3개가 전부 소멸/연기됨: 포트 필터는 `AcceptFilter`(레시피 참조)로 해결, 태그 재료 레시피는 기획 미확정, UI 분류는 UI 자체가 없음 → **소비자 0곳인 죽은 선언**이라 `AcceptedTypes`·`BuildingCategory`를 지운 것과 같은 기준으로 삭제

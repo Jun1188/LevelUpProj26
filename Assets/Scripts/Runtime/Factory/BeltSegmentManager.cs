@@ -44,10 +44,10 @@ public class BeltSegmentManager : MonoBehaviour
         // 담당하기로 했으므로, 벨트가 여러 벨트와 이어지는 경우는 병합하지 않는다.
         if (c.From.OutputConnections.Count > 1 || c.To.InputConnections.Count > 1) return;
 
-        // TODO(벨트 티어): 속도가 다른 벨트는 병합하지 않아야 한다.
-        //   지금은 병합 시 상류 세그먼트의 SpeedTilesPerSec만 살아남아, 혼합 속도 라인이
-        //   설치 순서에 따라 임의의 한 속도로 통일된다. 고속 벨트 추가 전에 아래 가드 활성화:
-        //   if (((BeltDataSO)c.From.Data).speedTilesPerSec != ((BeltDataSO)c.To.Data).speedTilesPerSec) return;
+        // 같은 벨트 종류(동일 SO 에셋)끼리만 병합 — 티어가 다르면(고속 벨트 등)
+        // 경계에서 세그먼트가 끊기고, 아이템은 버퍼 push로 넘어간다.
+        // 속도·스펙 차이를 개별 비교할 필요 없이 에셋 참조 하나로 판정된다.
+        if (c.From.Data != c.To.Data) return;
 
         var sf = EnsureSegment(c.From);   // 상류
         var st = EnsureSegment(c.To);     // 하류

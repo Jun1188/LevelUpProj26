@@ -1,6 +1,16 @@
 using UnityEngine;
 
-/// <summary>컨베이어 벨트. 연속된 벨트는 BeltSegment로 묶여 처리된다.</summary>
+/// <summary>
+/// 벨트의 모양 — 배치 시점에 결정되는 인스턴스 상태 (SO가 아님).
+/// 출력 방향은 RotationSteps가 정하고, 모양은 입력이 어느 쪽에서 오는지를 정한다.
+/// </summary>
+public enum BeltShape { Straight, CurveL, CurveR }
+
+/// <summary>
+/// 컨베이어 벨트. 연속된 같은 종류의 벨트는 BeltSegment로 묶여 처리된다.
+/// 직선/커브는 별도 SO가 아니라 배치 시 결정되는 모양(BeltShape) —
+/// 포트는 BuildPorts()로 계산해 BuildingInstance.PortOverride에 주입한다.
+/// </summary>
 [CreateAssetMenu(fileName = "NewBelt", menuName = "Factory/Buildings/Belt")]
 public class BeltDataSO : BuildingDataSO
 {
@@ -8,8 +18,46 @@ public class BeltDataSO : BuildingDataSO
     [Tooltip("아이템 이동 속도 (타일/초).")]
     public float speedTilesPerSec = 2f;
 
+    [Header("커브 프리팹 (기본 prefab = 직선)")]
+    public GameObject curveLPrefab;
+    public GameObject curveRPrefab;
+
+    public GameObject PrefabFor(BeltShape shape) => shape switch
+    {
+        BeltShape.CurveL => curveLPrefab,
+        BeltShape.CurveR => curveRPrefab,
+        _                => prefab,
+    };
+
     public override IBuildingBehavior CreateBehavior(BuildingInstance instance)
         => new BeltBehavior(instance);
+
+    // ── 모양별 포트 계산 (모양 3 × 회전 4 = 12조합 캐시)
+
+    /// <summary>모양과 출력 방향으로 입력 방향을 구한다. 이동 중인 아이템 기준 L=좌회전, R=우회전.</summary>
+    public static Direction InputDirFor(BeltShape shape, Direction outDir) => shape switch
+    {
+        BeltShape.CurveL => Dir.RotateCW(outDir, 3),
+        BeltShape.CurveR => Dir.RotateCW(outDir, 1),
+        _                => Dir.Opposite(outDir),
+    };
+
+    static readonly PortDefinition[][] _portCache = new PortDefinition[12][];
+
+    /// <summary>모양+회전에 맞는 포트 쌍. rotSteps=0일 때 출력은 East.</summary>
+    public static PortDefinition[] BuildPorts(BeltShape shape, int rotSteps)
+    {
+        int steps = (rotSteps % 4 + 4) % 4;
+        int key   = (int)shape * 4 + steps;
+        if (_portCache[key] != null) return _portCache[key];
+
+        var outDir = Dir.RotateCW(Direction.East, steps);
+        return _portCache[key] = new[]
+        {
+            new PortDefinition { IsInput = true,  Direction = InputDirFor(shape, outDir), LocalOffset = Vector2Int.zero },
+            new PortDefinition { IsInput = false, Direction = outDir,                     LocalOffset = Vector2Int.zero },
+        };
+    }
 }
 
 // ─── 행동 ──────────────────────────────────────────────────────

@@ -48,6 +48,7 @@ public class FactoryScenarioTests : MonoBehaviour
         yield return Run("4. 중간 철거 분할·복구",          S4_DemolishSplit);
         yield return Run("5. 회전 배치 연결",              S5_RotatedChain);
         yield return Run("6. 어셈블러 조합 체인",           S6_AssemblerChain);
+        yield return Run("7. 커브 벨트 코너 체인",          S7_CurvedChain);
 
         Time.timeScale = 1f;
         foreach (var so in _createdSOs) DestroyImmediate(so);
@@ -191,6 +192,28 @@ public class FactoryScenarioTests : MonoBehaviour
             $"회전된 체인에서도 아이템이 도착해야 함 (실제: {StoredCount(store, _ore)}개)");
     }
 
+    /// <summary>
+    /// L커브로 북쪽으로 꺾이는 체인: 마이너→벨트(동)→커브(동→북)→벨트(북)→저장소.
+    /// 커브 포함 전체가 하나의 세그먼트로 병합되고 아이템이 도착해야 한다.
+    /// </summary>
+    IEnumerator S7_CurvedChain()
+    {
+        Place(Miner(), 0, 0);
+        var b1 = PlaceBelt(1, 0, rot: 0, BeltShape.Straight);   // 동쪽으로
+        var b2 = PlaceBelt(2, 0, rot: 3, BeltShape.CurveL);     // 서쪽에서 받아 북쪽으로
+        var b3 = PlaceBelt(2, 1, rot: 3, BeltShape.Straight);   // 북쪽으로
+        var store = Place(Storage(), 2, 2, rot: 3);             // 남쪽(벨트)에서 받음
+
+        var seg = BeltSegmentManager.Instance.GetSegment(b1);
+        Expect(seg != null && seg == BeltSegmentManager.Instance.GetSegment(b2)
+                           && seg == BeltSegmentManager.Instance.GetSegment(b3),
+            "커브를 포함한 같은 종류 벨트는 하나의 세그먼트로 병합돼야 함");
+
+        yield return WaitSim(5f);
+        Expect(StoredCount(store, _ore) >= 1,
+            $"커브 체인에서도 아이템이 도착해야 함 (실제: {StoredCount(store, _ore)}개)");
+    }
+
     /// <summary>마이너→벨트→어셈블러(2광석=1주괴)→벨트→저장소.</summary>
     IEnumerator S6_AssemblerChain()
     {
@@ -244,6 +267,10 @@ public class FactoryScenarioTests : MonoBehaviour
     static BuildingInstance Place(BuildingDataSO so, int x, int y, int rot = 0)
         => PlacementBridge.Place(so, new Vector2Int(x, y), default, rot);
 
+    BuildingInstance PlaceBelt(int x, int y, int rot, BeltShape shape)
+        => PlacementBridge.Place(Belt(), new Vector2Int(x, y), default, rot,
+            BeltDataSO.BuildPorts(shape, rot));
+
     BuildingDataSO Miner(float ptime = 0.2f, int outBuf = 5)
     {
         // stackCap = outBuf → 출력 버퍼가 정확히 outBuf개에서 가득 참 (stall 시나리오용)
@@ -253,9 +280,12 @@ public class FactoryScenarioTests : MonoBehaviour
         return so;
     }
 
+    // 벨트는 단일 SO를 공유 — 병합 가드가 "같은 에셋"만 병합하므로 실제 게임과 같은 조건
+    BeltDataSO _beltSO;
     BuildingDataSO Belt() =>
-        MakeBuilding<BeltDataSO>("TestBelt",
-            new[] { Port(true, Direction.West), Port(false, Direction.East) }, stackCap: 10);
+        _beltSO != null ? _beltSO : _beltSO =
+            MakeBuilding<BeltDataSO>("TestBelt",
+                new[] { Port(true, Direction.West), Port(false, Direction.East) }, stackCap: 10);
 
     BuildingDataSO Storage() =>
         MakeBuilding<StorageDataSO>("TestStorage",
@@ -311,7 +341,7 @@ public class FactoryScenarioTests : MonoBehaviour
     void OnGUI()
     {
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine($"Factory 특성화 테스트  ({_results.Count}/6)");
+        sb.AppendLine($"Factory 특성화 테스트  ({_results.Count}/7)");
         foreach (var (name, pass, detail) in _results)
         {
             sb.AppendLine($"{(pass ? "PASS" : "FAIL")}  {name}");

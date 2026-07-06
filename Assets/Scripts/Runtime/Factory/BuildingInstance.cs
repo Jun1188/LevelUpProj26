@@ -45,8 +45,12 @@ public class BuildingInstance : MonoBehaviour
         _behavior = data.CreateBehavior(this);
     }
 
+    // 인스턴스별 포트 형상 (벨트의 직선/커브처럼 배치 시점에 결정되는 경우).
+    // null이면 SO의 회전 포트를 사용. BuildingGraph.OnPlaced 전에 설정해야 한다.
+    public PortDefinition[] PortOverride { get; set; }
+
     /// <summary>회전이 적용된 실제 포트 목록. BuildingGraph가 이걸 사용한다.</summary>
-    public PortDefinition[] GetEffectivePorts() => Data.GetRotatedPorts(RotationSteps);
+    public PortDefinition[] GetEffectivePorts() => PortOverride ?? Data.GetRotatedPorts(RotationSteps);
 
     /// <summary>BuildingGraph.OnPlaced() 완료 후 호출 — 연결이 확정된 뒤 초기화.</summary>
     public void OnAfterConnected() => _behavior?.OnAfterPlaced();

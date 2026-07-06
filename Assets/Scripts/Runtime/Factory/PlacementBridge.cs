@@ -6,16 +6,21 @@ using UnityEngine;
 /// </summary>
 public static class PlacementBridge
 {
-    public static BuildingInstance Place(BuildingDataSO so, Vector2Int origin, Vector3 pos = default, int rotSteps = 0)
+    /// <param name="portOverride">인스턴스별 포트 형상 (벨트 커브 등). null이면 SO 포트 사용.</param>
+    /// <param name="prefabOverride">인스턴스별 프리팹 (벨트 커브 메시 등). null이면 SO 프리팹 사용.</param>
+    public static BuildingInstance Place(BuildingDataSO so, Vector2Int origin, Vector3 pos = default, int rotSteps = 0,
+        PortDefinition[] portOverride = null, GameObject prefabOverride = null)
     {
+        var prefab = prefabOverride != null ? prefabOverride : so.prefab;
         GameObject go;
-        if (so.prefab != null) go = Object.Instantiate(so.prefab, pos, Quaternion.Euler(0, rotSteps * 90f, 0));
+        if (prefab != null) go = Object.Instantiate(prefab, pos, Quaternion.Euler(0, rotSteps * 90f, 0));
         else go = new GameObject(so.name); // 프리팹 누락 시 크래시 방지용 빈 오브젝트
 
         var instance = go.GetComponent<BuildingInstance>();
         if (instance == null) instance = go.AddComponent<BuildingInstance>();
-        
+
         instance.Initialize(so, origin, rotSteps);
+        instance.PortOverride = portOverride;   // 포트 매칭(OnPlaced) 전에 설정
 
         var rotSize = so.GetRotatedSize(rotSteps);
         for (int x = 0; x < rotSize.x; x++)

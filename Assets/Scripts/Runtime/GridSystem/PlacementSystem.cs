@@ -46,6 +46,9 @@ public class PlacementSystem : MonoBehaviour
     private List<Renderer> previewRenderers = new();
     private int rotation;
 
+    // 벨트 모양 — T키로 직선/L/R 순환
+    private BeltShape beltShape;
+
     // 철거 모드 상태
     private BuildingInstance hovered;                              // 지금 하이라이트 중인 건물
     private readonly Dictionary<Renderer, Material[]> savedMats = new(); // 원본 머티리얼 백업
@@ -69,10 +72,12 @@ public class PlacementSystem : MonoBehaviour
 
     public void SelectBuilding(BuildingDataSO data)
     {
+        if (data == null) return;
         ExitMode();
         mode = BuildMode.Placing;
         current = data;
         rotation = 0;
+        beltShape = BeltShape.Straight;
         SpawnPreview();
     }
 
@@ -112,7 +117,7 @@ public class PlacementSystem : MonoBehaviour
             _EnterDemolishModeTest();
         }
 
-        GUI.TextArea(new Rect(20, 170, 100, 20), "회전 : R");
+        GUI.TextArea(new Rect(20, 170, 200, 40), "회전 : R\n벨트 모양 : T (직선/L/R)");
     }
 
     /// <summary>현재 모드를 빠져나오며 프리뷰/하이라이트를 정리한다.</summary>
@@ -133,6 +138,13 @@ public class PlacementSystem : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.R))
             rotation = (rotation + 1) % 4;
+
+        // T: 벨트 모양 순환 (직선 → L → R)
+        if (Input.GetKeyDown(KeyCode.T) && current is BeltDataSO)
+        {
+            beltShape = (BeltShape)(((int)beltShape + 1) % 3);
+            SpawnPreview();   // 모양이 바뀌면 프리뷰 메시 교체
+        }
 
         if (Input.GetMouseButtonDown(1) || Input.GetKeyDown(KeyCode.Escape))
         {
@@ -161,7 +173,11 @@ public class PlacementSystem : MonoBehaviour
 
     private void Place(Vector2Int origin, Vector3 pos)
     {
-        PlacementBridge.Place(current, origin, pos, rotation);
+        if (current is BeltDataSO belt)
+            PlacementBridge.Place(current, origin, pos, rotation,
+                BeltDataSO.BuildPorts(beltShape, rotation), belt.PrefabFor(beltShape));
+        else
+            PlacementBridge.Place(current, origin, pos, rotation);
     }
 
     // ===================== 철거 모드 =====================
@@ -294,7 +310,9 @@ public class PlacementSystem : MonoBehaviour
         if (preview != null) Destroy(preview);
         previewRenderers.Clear();
 
-        preview = Instantiate(current.prefab);
+        var prefab = current is BeltDataSO belt ? belt.PrefabFor(beltShape) : current.prefab;
+        if (prefab == null) prefab = current.prefab;   // 커브 프리팹 미지정 시 직선으로 폴백
+        preview = Instantiate(prefab);
         foreach (var col in preview.GetComponentsInChildren<Collider>())
             col.enabled = false;
         previewRenderers = preview.GetComponentsInChildren<Renderer>().ToList();

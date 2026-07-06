@@ -12,19 +12,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 48936e0cc3d3477f855f2c57d104e68e, type: 3}
   m_Name: Assembler
   m_EditorClassIdentifier: Assembly-CSharp::AssemblerDataSO
-  name: Assembler
+  id: Buildings::Assembler
+  displayName: Assembler
   description: 
   icon: {fileID: 0}
+  tags: []
   prefab: {fileID: 5279508996628763662, guid: f21554090b8662041865fae8ac84acf4, type: 3}
   size: {x: 1, y: 1}
-  category: 2
   ports:
   - LocalOffset: {x: 0, y: 0}
     Direction: 3
     IsInput: 1
-    AcceptedTypes: 0000000001000000020000000300000004000000
+  inputSlots: 1
+  outputSlots: 1
+  bufferStackCap: 0
   availableRecipes:
   - {fileID: 11400000, guid: ca292011fbddbce4891086f482dc8171, type: 2}
-  processingTime: 2
-  maxInputBuffer: 10
-  maxOutputBuffer: 10

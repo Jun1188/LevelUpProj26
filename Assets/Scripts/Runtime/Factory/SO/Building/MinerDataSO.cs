@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 
 /// <summary>채굴기. 주기적으로 아이템을 생산해 출력 포트로 내보낸다.</summary>
-[CreateAssetMenu(fileName = "NewMiner", menuName = "Factory/Miner")]
+[CreateAssetMenu(fileName = "NewMiner", menuName = "Factory/Buildings/Miner")]
 public class MinerDataSO : BuildingDataSO
 {
     [Header("채굴")]
@@ -54,9 +54,7 @@ public class MinerBehavior : IBuildingBehavior
         var sim = SimulationSystem.Instance;
 
         // 1. 밀려 있던 출력 버퍼부터 배출 (하류가 받는 만큼 전부)
-        foreach (var (item, count) in _b.Inventory.OutputSnapshot)
-            for (int k = 0; k < count && _b.TryPushOutput(item); k++)
-                _b.Inventory.TryConsumeOutput(item);
+        _b.FlushOutputs();
 
         // 2. 채굴 완료 판정
         if (_readyAt >= 0f && sim.Now >= _readyAt)
@@ -64,12 +62,12 @@ public class MinerBehavior : IBuildingBehavior
             _readyAt = -1f;
             // 예약 시점에 버퍼 여유를 확인했으므로 여기서 유실될 수 없다
             if (!_b.TryPushOutput(_target))
-                _b.Inventory.TryAddOutput(_target);
+                _b.Output.TryAdd(_target);
         }
 
         // 3. 다음 채굴 예약 — 출력 버퍼에 자리가 있을 때만.
         //    자리가 없으면 정지(stall); 하류의 NotifyUpstream이 다시 깨운다.
-        if (_readyAt < 0f && _b.Inventory.OutputAmount(_target) < _b.Data.maxOutputBuffer)
+        if (_readyAt < 0f && _b.Output.HasRoomFor(_target))
         {
             _readyAt = sim.Now + _data.processingTime;
             sim.ScheduleWake(_b, _data.processingTime);

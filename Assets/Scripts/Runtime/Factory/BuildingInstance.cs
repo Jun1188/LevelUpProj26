@@ -15,8 +15,9 @@ public class BuildingInstance : MonoBehaviour
     public Vector2Int Origin { get; private set; }
     public int RotationSteps { get; private set; }
 
-    // 런타임 상태
-    public BuildingInventory Inventory { get; private set; }
+    // 런타임 상태 — 입력/출력 버퍼 분리 (슬롯 기반, 플레이어 인벤토리와 같은 모델)
+    public ItemContainer Input  { get; private set; }
+    public ItemContainer Output { get; private set; }
     public bool IsDirty { get; set; } // SimulationSystem이 관리
 
     // PlacementBridge.Remove가 설정. Destroy는 프레임 끝에 실행되므로,
@@ -39,7 +40,8 @@ public class BuildingInstance : MonoBehaviour
         Data = data;
         Origin = origin;
         RotationSteps = rotSteps;
-        Inventory = new BuildingInventory(data.maxInputBuffer, data.maxOutputBuffer);
+        Input  = new ItemContainer(data.inputSlots,  data.bufferStackCap);
+        Output = new ItemContainer(data.outputSlots, data.bufferStackCap);
         _behavior = data.CreateBehavior(this);
     }
 
@@ -60,11 +62,19 @@ public class BuildingInstance : MonoBehaviour
     {
         foreach (var c in OutputConnections)
         {
-            if (!c.To.Inventory.TryAddInput(item)) continue;
+            if (!c.To.Input.TryAdd(item)) continue;
             SimulationSystem.Instance.MarkDirty(c.To);
             return true;
         }
         return false; // 모든 출력 막힘
+    }
+
+    /// <summary>출력 버퍼의 아이템을 하류가 받는 만큼 전부 배출. 행동들의 공용 루틴.</summary>
+    public void FlushOutputs()
+    {
+        foreach (var (item, count) in Output.Snapshot())
+            for (int k = 0; k < count && TryPushOutput(item); k++)
+                Output.TryConsume(item);
     }
 
     /// <summary>

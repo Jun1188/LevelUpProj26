@@ -1,7 +1,7 @@
 using UnityEngine;
 
 /// <summary>컨베이어 벨트. 연속된 벨트는 BeltSegment로 묶여 처리된다.</summary>
-[CreateAssetMenu(fileName = "NewBelt", menuName = "Factory/Belt")]
+[CreateAssetMenu(fileName = "NewBelt", menuName = "Factory/Buildings/Belt")]
 public class BeltDataSO : BuildingDataSO
 {
     [Header("운반")]
@@ -31,13 +31,13 @@ public class BeltBehavior : IBuildingBehavior
         // 입력 버퍼 아이템을 벨트 위로 (입구가 막혔으면 받아준 만큼만 소비).
         // TryAddItem은 세그먼트 입구(pos 0) 삽입 — 생산자로부터 입력을 받는 벨트는
         // 상류 벨트가 없는 벨트뿐이므로(1입력 포트) 항상 자기 세그먼트의 입구다.
-        foreach (var (item, count) in _b.Inventory.InputSnapshot)
+        foreach (var (item, count) in _b.Input.Snapshot())
         {
             int moved = 0;
             while (moved < count && seg.TryAddItem(item)) moved++;
             if (moved > 0)
             {
-                _b.Inventory.TryConsumeInput(item, moved);
+                _b.Input.TryConsume(item, moved);
                 _b.NotifyUpstream(); // 입력 버퍼에 자리 생김 → 막혀 있던 상류 깨움
             }
         }
@@ -47,7 +47,7 @@ public class BeltBehavior : IBuildingBehavior
             seg.Tick(dt);
 
         // 입구가 막혀 버퍼가 안 비면 다음 틱에 재시도
-        if (_b.Inventory.InputSnapshot.Count > 0)
+        if (_b.Input.HasAny)
             SimulationSystem.Instance.MarkDirty(_b);
     }
 }

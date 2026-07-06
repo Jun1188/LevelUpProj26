@@ -1,7 +1,7 @@
 using UnityEngine;
 
 /// <summary>저장소. 받은 아이템을 보관하고 연결된 하류로 내보낸다. 용량은 버퍼 크기로 설정.</summary>
-[CreateAssetMenu(fileName = "NewStorage", menuName = "Factory/Storage")]
+[CreateAssetMenu(fileName = "NewStorage", menuName = "Factory/Buildings/Storage")]
 public class StorageDataSO : BuildingDataSO
 {
     public override IBuildingBehavior CreateBehavior(BuildingInstance instance)
@@ -23,19 +23,15 @@ public class StorageBehavior : IBuildingBehavior
     public void Tick(float dt)
     {
         // 입력 버퍼 → 출력 버퍼 이동 (출력 여유만큼만)
-        foreach (var (item, count) in _b.Inventory.InputSnapshot)
+        foreach (var (item, count) in _b.Input.Snapshot())
         {
-            int moved = 0;
-            while (moved < count && _b.Inventory.TryAddOutput(item)) moved++;
-            if (moved > 0)
-            {
-                _b.Inventory.TryConsumeInput(item, moved);
-                _b.NotifyUpstream(); // 입력 버퍼에 자리 생김 → 막혀 있던 상류 깨움
-            }
+            int move = Mathf.Min(count, _b.Output.RoomFor(item));
+            if (move <= 0) continue;
+            _b.Output.TryAdd(item, move);
+            _b.Input.TryConsume(item, move);
+            _b.NotifyUpstream(); // 입력 버퍼에 자리 생김 → 막혀 있던 상류 깨움
         }
 
-        foreach (var (item, count) in _b.Inventory.OutputSnapshot)
-            for (int k = 0; k < count && _b.TryPushOutput(item); k++)
-                _b.Inventory.TryConsumeOutput(item);
+        _b.FlushOutputs();
     }
 }

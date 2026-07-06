@@ -15,8 +15,13 @@ MonoBehaviour:
   folderDatas_byGuid:
     keys:
     - 4a28bd5e7a2783140b68ddec86a077dd
+    - ae037c66cde12de43a6c8c77b41f7dce
     values:
     - iconNameOrGuid: PackageManagerWarning
+      colorIndex: 0
+      isIconRecursive: 0
+      isColorRecursive: 0
+    - iconNameOrGuid: cs Script Icon
       colorIndex: 0
       isIconRecursive: 0
       isColorRecursive: 0

@@ -12,22 +12,21 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 56d4fa73653b4aebaf7e65c522fde0c1, type: 3}
   m_Name: Belt
   m_EditorClassIdentifier: Assembly-CSharp::BeltDataSO
-  name: Belt
+  id: Buildings::Belt
+  displayName: Belt
   description: 
   icon: {fileID: 0}
+  tags: []
   prefab: {fileID: 7962463567319494330, guid: 0bf1db28421cbd541a35566362273cfa, type: 3}
   size: {x: 1, y: 1}
-  category: 1
   ports:
   - LocalOffset: {x: 0, y: 0}
     Direction: 3
     IsInput: 1
-    AcceptedTypes: 0000000001000000020000000300000004000000
   - LocalOffset: {x: 0, y: 0}
     Direction: 1
     IsInput: 0
-    AcceptedTypes: 0000000001000000020000000300000004000000
-  availableRecipes: []
-  processingTime: 1
-  maxInputBuffer: 10
-  maxOutputBuffer: 10
+  inputSlots: 1
+  outputSlots: 1
+  bufferStackCap: 1
+  speedTilesPerSec: 2

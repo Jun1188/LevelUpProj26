@@ -8,11 +8,11 @@ using UnityEngine;
 //  건물 간 상호작용의 핵심 — 연결 관리
 //
 //  포함:
-//    BuildingInventory  — 건물별 입출력 아이템 버퍼
 //    BuildingConnection — 두 건물 간의 단방향 연결
 //    BuildingGraph      — 포트 매칭으로 연결 자동 생성/해제
 //
 //  관련 (별도 파일):
+//    ItemContainer      — 건물 입출력 버퍼 (슬롯 기반)
 //    BuildingInstance   — 씬에 배치된 건물의 런타임 상태
 //    GridRegistry       — 좌표 → BuildingInstance O(1) 조회 (GridSystem 폴더)
 //
@@ -26,62 +26,6 @@ using UnityEngine;
 //    2. SimulationSystem.Instance.Unregister(instance)
 //    3. GridRegistry.Remove(pos)            ← 점유 셀 전부
 // ================================================================
-
-// ─── 인벤토리 ───────────────────────────────────────────────────
-
-/// <summary>
-/// 건물의 입출력 아이템 버퍼.
-/// Push-Pull 방식: 생산자가 다음 건물에 TryAddInput() 호출,
-/// 소비자는 TryConsumeInput()으로 꺼낸다.
-/// </summary>
-public class BuildingInventory : IFormattable
-{
-    readonly Dictionary<string, (ItemDataSO item, int n)> _in  = new();
-    readonly Dictionary<string, (ItemDataSO item, int n)> _out = new();
-    public readonly int MaxIn, MaxOut;
-
-    public BuildingInventory(int maxIn, int maxOut) { MaxIn = maxIn; MaxOut = maxOut; }
-
-    // ── 입력 버퍼
-    public bool TryAddInput(ItemDataSO it, int n = 1)
-    {
-        _in.TryGetValue(it.name, out var c);
-        if (c.n + n > MaxIn) return false;
-        _in[it.name] = (it, c.n + n); return true;
-    }
-    public bool TryConsumeInput(ItemDataSO it, int n = 1)
-    {
-        if (!_in.TryGetValue(it.name, out var c) || c.n < n) return false;
-        int r = c.n - n; if (r == 0) _in.Remove(it.name); else _in[it.name] = (it, r); return true;
-    }
-    public int InputAmount(ItemDataSO it) => _in.TryGetValue(it.name, out var v) ? v.n : 0;
-
-    // ── 출력 버퍼
-    public bool TryAddOutput(ItemDataSO it, int n = 1)
-    {
-        _out.TryGetValue(it.name, out var c);
-        if (c.n + n > MaxOut) return false;
-        _out[it.name] = (it, c.n + n); return true;
-    }
-    public bool TryConsumeOutput(ItemDataSO it, int n = 1)
-    {
-        if (!_out.TryGetValue(it.name, out var c) || c.n < n) return false;
-        int r = c.n - n; if (r == 0) _out.Remove(it.name); else _out[it.name] = (it, r); return true;
-    }
-    public int  OutputAmount(ItemDataSO it) => _out.TryGetValue(it.name, out var v) ? v.n : 0;
-    public bool HasOutput                   => _out.Count > 0;
-
-    // 순회 중 컬렉션 수정 방지 — 항상 ToList() 스냅샷 사용
-    public List<(ItemDataSO item, int n)> OutputSnapshot => _out.Values.ToList();
-    public List<(ItemDataSO item, int n)> InputSnapshot => _in.Values.ToList();
-
-    string IFormattable.ToString(string format, IFormatProvider formatProvider)
-    {
-        string inStr  = string.Join(", ", _in.Values.Select(v => $"{v.item.name}:{v.n}"));
-        string outStr = string.Join(", ", _out.Values.Select(v => $"{v.item.name}:{v.n}"));
-        return $"[BuildingInventory] In({inStr}) / Out({outStr})";
-    }
-}
 
 // ─── 연결 ───────────────────────────────────────────────────────
 

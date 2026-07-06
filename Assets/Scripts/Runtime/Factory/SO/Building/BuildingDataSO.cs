@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
@@ -14,7 +13,6 @@ using UnityEngine;
 // ─── 기본 열거형 ────────────────────────────────────────────────
 
 public enum Direction { North, East, South, West }
-public enum ItemType  { Ore, Ingot, Component, Fuel, Misc, Weapon, Helmet, Chestplate, Boots }
 
 // ─── 방향 헬퍼 ─────────────────────────────────────────────────
 
@@ -63,7 +61,10 @@ public class PortDefinition
     public Vector2Int LocalOffset;    // 건물 Origin 기준 상대 그리드 좌표
     public Direction  Direction;      // 포트가 향하는 방향 (아이템 흐름 방향)
     public bool       IsInput;        // true = 수신 포트,  false = 배출 포트
-    public ItemType[] AcceptedTypes;  // null 또는 빈 배열 = 모든 타입 허용
+
+    // 아이템 필터링은 포트가 아니라 수신자의 ItemContainer.AcceptFilter가 담당한다
+    // (예: 어셈블러 입력 = 현재 레시피의 재료만). 포트 필터를 두면 레시피와
+    // 이중 장부가 되어 어긋날 수 있어 제거했다.
 }
 
 // ─── 행동 인터페이스 ────────────────────────────────────────────
@@ -94,13 +95,12 @@ public interface IBuildingBehavior
 ///   MinerDataSO / BeltDataSO / AssemblerDataSO / StorageDataSO
 /// 새 건물 종류 추가 = 서브클래스 SO + 행동 클래스 1쌍 (기존 코드 무수정).
 /// </summary>
-public abstract class BuildingDataSO : ScriptableObject
+public abstract class BuildingDataSO : GameDataSO
 {
-    [Header("식별")]
-    public new string    name;
-    public string        description;
-    public Sprite        icon;
-    public GameObject    prefab;
+    // 식별·표시(id/displayName/description/icon)는 GameDataSO가 담당
+
+    [Header("프리팹")]
+    public GameObject prefab;
 
     [Header("그리드 크기")]
     public Vector2Int size = Vector2Int.one; // 타일 단위 (1×1, 2×1 등)
@@ -108,9 +108,13 @@ public abstract class BuildingDataSO : ScriptableObject
     [Header("포트 — 건물 간 연결의 핵심")]
     public PortDefinition[] ports;
 
-    [Header("버퍼 크기")]
-    public int              maxInputBuffer  = 10;
-    public int              maxOutputBuffer = 10;
+    [Header("버퍼 — 슬롯 기반 (플레이어 인벤토리와 같은 모델)")]
+    [Tooltip("입력 버퍼 슬롯 수. 벨트/기계 1, 어셈블러 2(재료 종류만큼) 권장.")]
+    public int inputSlots  = 1;
+    [Tooltip("출력 버퍼 슬롯 수.")]
+    public int outputSlots = 1;
+    [Tooltip("버퍼 스택 상한. 0 = 아이템 기본값(64). 기계는 5~10 권장 — 과잉 보관 방지.")]
+    public int bufferStackCap = 0;
 
     /// <summary>이 건물의 런타임 행동 생성. BuildingInstance.Initialize에서 호출.</summary>
     public abstract IBuildingBehavior CreateBehavior(BuildingInstance instance);
@@ -141,15 +145,18 @@ public abstract class BuildingDataSO : ScriptableObject
             int prevWidth = GetRotatedSize(s - 1).x; // 이번 스텝 회전 전의 가로 크기
             table[s] = table[s - 1].Select(p => new PortDefinition
             {
-                IsInput       = p.IsInput,
-                AcceptedTypes = p.AcceptedTypes,
-                Direction     = Dir.RotateCW(p.Direction),
-                LocalOffset   = Dir.RotateCellCW(p.LocalOffset, prevWidth),
+                IsInput     = p.IsInput,
+                Direction   = Dir.RotateCW(p.Direction),
+                LocalOffset = Dir.RotateCellCW(p.LocalOffset, prevWidth),
             }).ToArray();
         }
         return table;
     }
 
-    void OnValidate() => _portsByRotation = null; // 인스펙터에서 포트 수정 시 캐시 무효화
+    protected override void OnValidate()
+    {
+        base.OnValidate();        // id 자동 부여 (GameDataSO)
+        _portsByRotation = null;  // 인스펙터에서 포트 수정 시 캐시 무효화
+    }
 }
 

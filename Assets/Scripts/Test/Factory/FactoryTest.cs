@@ -56,53 +56,29 @@ public class FactoryTest : MonoBehaviour
         // 1. 건물 기본 정보 서식화
         sb.AppendLine("--------------------------------------------------");
         sb.AppendLine("[ 건물 정보 ]");
-        sb.AppendLine($"- 이름 : {building.Data.name}");
+        sb.AppendLine($"- 이름 : {building.Data.displayName}");
         sb.AppendLine($"- 종류 : {building.Data.GetType().Name}");
         sb.AppendLine($"- 위치 : {building.Origin}");
         sb.AppendLine($"- 회전 : {building.RotationSteps}단계 ({building.RotationSteps * 90}도)");
         sb.AppendLine();
 
         // 2. 인벤토리 버퍼 정보 서식화
-        BuildingInventory inv = building.Inventory;
-        if (inv != null)
-        {
-            sb.AppendLine("[ 버퍼 상태 ]");
-
-            // 입력 버퍼 출력
-            var inputs = inv.InputSnapshot;
-            sb.AppendLine($"- 입력 버퍼 (최대 용량: {inv.MaxIn}개)");
-            if (inputs != null && inputs.Count > 0)
-            {
-                foreach (var input in inputs)
-                {
-                    sb.AppendLine($"  * {input.item.name} : {input.n}개");
-                }
-            }
-            else
-            {
-                sb.AppendLine("  * (비어 있음)");
-            }
-
-            sb.AppendLine();
-
-            // 출력 버퍼 출력
-            var outputs = inv.OutputSnapshot;
-            sb.AppendLine($"- 출력 버퍼 (최대 용량: {inv.MaxOut}개)");
-            if (outputs != null && outputs.Count > 0)
-            {
-                foreach (var output in outputs)
-                {
-                    sb.AppendLine($"  * {output.item.name} : {output.n}개");
-                }
-            }
-            else
-            {
-                sb.AppendLine("  * (비어 있음)");
-            }
-        }
+        sb.AppendLine("[ 버퍼 상태 ]");
+        AppendContainer(sb, "입력 버퍼", building.Input);
+        sb.AppendLine();
+        AppendContainer(sb, "출력 버퍼", building.Output);
         sb.AppendLine("--------------------------------------------------");
 
         currentBuildingInfo = sb.ToString();
+    }
+
+    private static void AppendContainer(StringBuilder sb, string label, ItemContainer c)
+    {
+        sb.AppendLine($"- {label} ({c.SlotCount}칸)");
+        var entries = c.Snapshot();
+        if (entries.Count == 0) { sb.AppendLine("  * (비어 있음)"); return; }
+        foreach (var (item, n) in entries)
+            sb.AppendLine($"  * {item.displayName} : {n}개");
     }
 
     void OnGUI()

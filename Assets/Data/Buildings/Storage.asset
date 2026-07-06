@@ -9,24 +9,22 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 56d4fa73653b4aebaf7e65c522fde0c1, type: 3}
-  m_Name: BeltRCurve
-  m_EditorClassIdentifier: Assembly-CSharp::BeltDataSO
-  id: Buildings::BeltRCurve
-  displayName: BeltRCurve
+  m_Script: {fileID: 11500000, guid: 48936e0cc3d3477f855f2c57d104e68e, type: 3}
+  m_Name: Storage
+  m_EditorClassIdentifier: Assembly-CSharp::AssemblerDataSO
+  id: Buildings::Storage
+  displayName: Storage
   description: 
   icon: {fileID: 0}
   tags: []
-  prefab: {fileID: 7962463567319494330, guid: 6514f9f08f82db64e8d5ca4c2c8a0dfb, type: 3}
+  prefab: {fileID: 5279508996628763662, guid: f21554090b8662041865fae8ac84acf4, type: 3}
   size: {x: 1, y: 1}
   ports:
   - LocalOffset: {x: 0, y: 0}
     Direction: 3
     IsInput: 1
-  - LocalOffset: {x: 0, y: 0}
-    Direction: 2
-    IsInput: 0
   inputSlots: 1
-  outputSlots: 1
-  bufferStackCap: 1
-  speedTilesPerSec: 2
+  outputSlots: 27
+  bufferStackCap: 0
+  availableRecipes:
+  - {fileID: 11400000, guid: ca292011fbddbce4891086f482dc8171, type: 2}

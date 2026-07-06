@@ -70,7 +70,7 @@ public class BeltSegment
                 bool sent = false;
                 foreach (var conn in exitBelt.OutputConnections)
                 {
-                    if (!conn.To.Inventory.TryAddInput(item)) continue;
+                    if (!conn.To.Input.TryAdd(item)) continue;
                     SimulationSystem.Instance.MarkDirty(conn.To);
                     _items.RemoveAt(i);
                     i--;

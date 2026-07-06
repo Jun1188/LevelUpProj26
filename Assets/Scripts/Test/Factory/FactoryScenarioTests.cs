@@ -128,7 +128,7 @@ public class FactoryScenarioTests : MonoBehaviour
         var miner = Place(Miner(outBuf: 2), 0, 0);
 
         yield return WaitSim(1.5f); // 버퍼(2)가 차고 stall될 시간
-        int stalled = miner.Inventory.OutputAmount(_ore);
+        int stalled = miner.Output.CountOf(_ore);
         Expect(stalled == 2, $"출력이 막히면 버퍼 상한(2)에서 생산이 멈춰야 함 (실제: {stalled}개)");
 
         Place(Belt(), 1, 0);
@@ -228,12 +228,12 @@ public class FactoryScenarioTests : MonoBehaviour
     }
 
     static int StoredCount(BuildingInstance store, ItemDataSO item)
-        => store.Inventory.InputAmount(item) + store.Inventory.OutputAmount(item);
+        => store.Input.CountOf(item) + store.Output.CountOf(item);
 
     /// <summary>막힌 체인 검증용: 마이너 출력 + 벨트 입력 버퍼 + 벨트 위 아이템 총합.</summary>
     int SystemTotal(BuildingInstance miner, BuildingInstance belt)
     {
-        int total = miner.Inventory.OutputAmount(_ore) + belt.Inventory.InputAmount(_ore);
+        int total = miner.Output.CountOf(_ore) + belt.Input.CountOf(_ore);
         var seg = BeltSegmentManager.Instance.GetSegment(belt);
         if (seg != null) total += seg.Items.Count;
         return total;
@@ -246,24 +246,25 @@ public class FactoryScenarioTests : MonoBehaviour
 
     BuildingDataSO Miner(float ptime = 0.2f, int outBuf = 5)
     {
+        // stackCap = outBuf → 출력 버퍼가 정확히 outBuf개에서 가득 참 (stall 시나리오용)
         var so = MakeBuilding<MinerDataSO>("TestMiner",
-            new[] { Port(false, Direction.East) }, outBuf: outBuf);
+            new[] { Port(false, Direction.East) }, stackCap: outBuf);
         so.processingTime = ptime;
         return so;
     }
 
     BuildingDataSO Belt() =>
         MakeBuilding<BeltDataSO>("TestBelt",
-            new[] { Port(true, Direction.West), Port(false, Direction.East) });
+            new[] { Port(true, Direction.West), Port(false, Direction.East) }, stackCap: 10);
 
     BuildingDataSO Storage() =>
         MakeBuilding<StorageDataSO>("TestStorage",
-            new[] { Port(true, Direction.West) }, inBuf: 50, outBuf: 50);
+            new[] { Port(true, Direction.West) }, stackCap: 50);
 
     BuildingDataSO Assembler(RecipeDataSO recipe)
     {
         var so = MakeBuilding<AssemblerDataSO>("TestAssembler",
-            new[] { Port(true, Direction.West), Port(false, Direction.East) });
+            new[] { Port(true, Direction.West), Port(false, Direction.East) }, stackCap: 10);
         so.availableRecipes = new[] { recipe };
         return so;
     }
@@ -271,15 +272,16 @@ public class FactoryScenarioTests : MonoBehaviour
     static PortDefinition Port(bool isInput, Direction dir) =>
         new() { IsInput = isInput, Direction = dir, LocalOffset = Vector2Int.zero };
 
-    T MakeBuilding<T>(string name, PortDefinition[] ports, int inBuf = 10, int outBuf = 5)
+    T MakeBuilding<T>(string name, PortDefinition[] ports, int stackCap = 10)
         where T : BuildingDataSO
     {
         var so = ScriptableObject.CreateInstance<T>();
-        so.name            = name;
-        so.size            = Vector2Int.one;
-        so.ports           = ports;
-        so.maxInputBuffer  = inBuf;
-        so.maxOutputBuffer = outBuf;
+        so.name           = name;
+        so.size           = Vector2Int.one;
+        so.ports          = ports;
+        so.inputSlots     = 1;
+        so.outputSlots    = 1;
+        so.bufferStackCap = stackCap;   // 1칸 × stackCap = 기존 "최대 n개" 의미 유지
         _createdSOs.Add(so);
         return so;
     }

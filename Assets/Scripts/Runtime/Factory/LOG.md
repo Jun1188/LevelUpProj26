@@ -125,3 +125,51 @@
 
 - 로직 분기가 전부 타입 기반(`CreateBehavior`, `is BeltDataSO`)으로 대체돼 표시용 1곳만 남았기에 enum과 `Category` 프로퍼티 삭제. FactoryTest는 `Data.GetType().Name` 표시
 - **남은 TODO (팀 결정)**: 속도가 다른 벨트는 세그먼트 병합 금지 — 현재는 병합 시 상류 세그먼트 속도로 통일되어 설치 순서 의존적. 고속 벨트 티어 추가 전에 필수. 가드 한 줄이 `BeltSegmentManager.OnNewConnection`에 TODO 주석으로 준비돼 있음
+
+---
+
+## 2026-07-05 — 재설계 2단계 착수: GameDataSO + TagSO 도입 (식별 체계 통일)
+
+- **배경**: 식별 방식이 3갈래였음 — Factory(문자열 `name` 키 + ItemType enum) / 팀원 인벤토리(SO 참조 비교 — 이게 정답) / FPS(`gunName` + WeaponType). 공통 필드(name/desc/icon)가 SO마다 중복 정의 + `new string name`이 `Object.name` 섀도잉
+- **도입**:
+  - `GameDataSO` — 모든 데이터 SO의 공통 베이스: `Id`(수동 지정 가능. 비우면 **"Data 기준 폴더 경로::displayName"** 자동 생성, 예: `Item::IronOre` — displayName이 채워진 뒤에만 생성됨 + 에디터 중복 검사), `displayName`, `description`, `icon`, `tags`. **런타임 구분은 SO 참조, id는 세이브 직렬화 전용**이 원칙. 한번 생성된 id는 폴더 이동/개명해도 유지, 세이브가 존재하는 id는 변경 금지
+  - `TagSO` — 마인크래프트식 태그(#ore)의 마커 에셋. 문자열 대신 에셋 참조라 오타·리네임 안전. 용처: 레시피 태그 재료, 포트 필터(AcceptedTypes 대체 예정), 분류
+  - `ItemDataSO`/`RecipeDataSO`/`BuildingDataSO`가 GameDataSO 상속. `new string name` 전부 제거, `[FormerlySerializedAs("name")]`로 기존 에셋 값 무손실 이전
+  - `ItemType` enum은 ItemDataSO.cs로 이동, 태그 대체는 TODO (팀원 ItemTooltipUI가 사용 중이라 합의 필요)
+- **주의 (팀원 코드 영향)**: `item.name`을 쓰던 곳(ItemTooltipUI, InventoryManager, DroppedItem, PlayerController)은 이제 `Object.name`(에셋 파일명)으로 폴백됨 — 컴파일은 되지만 표시 텍스트가 파일명이 됨. **표시 용도는 `displayName`으로 바꾸는 걸 해당 팀원과 협의할 것**
+- 기존 에셋의 `id`는 인스펙터에서 열리거나 리임포트될 때 OnValidate로 자동 부여됨
+
+---
+
+## 2026-07-06 — BuildingInventory 제거, 슬롯 기반 ItemContainer로 교체
+
+- **결정**: 건물 버퍼를 플레이어 인벤토리(팀원 작성)와 같은 데이터 모델로 통일 — `ItemStack` 공유 + SO 참조 비교. 보류했던 "버퍼 의미"는 **슬롯 × 스택**으로 확정
+- **신설 `ItemContainer`** (plain C#, Mono 아님): `TryAdd`/`TryConsume`(전량 아니면 실패)/`CountOf`/`RoomFor`/`HasRoomFor`(stall 판정)/`Snapshot`. 스택 병합은 팀원 Inventory와 같은 규칙(기존 스택 먼저, 빈 슬롯 순서)
+- **`BuildingInstance`**: `Inventory` 1개 → `Input`/`Output` 컨테이너 2개. 3곳에 복붙돼 있던 배출 루프를 `FlushOutputs()`로 공용화
+- **`BuildingDataSO`**: `maxInputBuffer/maxOutputBuffer`(종류당 개수) → `inputSlots/outputSlots`(칸 수) + `bufferStackCap`(0=아이템 기본 64, 기계는 작게). **기존 에셋의 버퍼 값은 의도적으로 이전하지 않음** (의미가 달라서) — 인스펙터에서 재설정 필요 (기본 1칸/1칸/0)
+- **`BuildingInventory` 삭제** — 문자열(name) 키 식별이 코드베이스에서 소멸. "큰 문제"였던 인벤토리 키 논의 종결
+- **효과**: 벨트→상자→플레이어 인벤 아이템 이동이 같은 모델이라 변환 불필요. 향후 팀원 Inventory가 내부를 ItemContainer 위임으로 바꾸면 완전 통일 (합의 대기)
+- **주의**: 어셈블러 `CanStoreOutputs`는 다중 출력 레시피에서 근사 검사 (현 레시피 전부 단일 출력이라 정확). `ItemStack.maxStackSize`를 `ItemDataSO.maxStack`으로 옮기는 건 팀 합의 항목
+
+---
+
+## 2026-07-06 — 어셈블러 슬롯 규칙 + AcceptedTypes 삭제 (보류 항목 종결)
+
+- **문제 1 — 레시피 교체 제약**: `inputSlots`가 SO 고정값이라 재료 종류가 더 많은 레시피로 바꾸면 영구 stall
+  → `AssemblerDataSO.OnValidate`가 슬롯 부족 레시피를 에디터 에러로 표시 (자동 확장하지 않음 — 슬롯 수는 디자이너 의도 값). `SetRecipe`에도 슬롯 초과 가드
+- **문제 2 — 재료 독점 데드락**: 컨테이너가 마크 상자처럼 넘침(같은 아이템이 빈 슬롯 점유) → 철광석이 2칸을 다 차지하면 구리가 영원히 못 들어옴
+  → `ItemContainer.SingleStackPerType` 도입 (같은 아이템은 슬롯 1개까지). 어셈블러 입력에 적용, 저장소는 기본(넘침) 유지
+- **AcceptedTypes 삭제**: 포트 수준 필터는 레시피와 이중 장부가 되는 데다 처음부터 검사 코드가 없던 죽은 선언
+  → `ItemContainer.AcceptFilter`(수용 필터)로 대체 — 어셈블러 입력이 "현재 레시피의 재료만" 수용. 거절된 push는 상류로 배압 전달. 필터 벨트 등 진짜 포트 필터 수요가 생기면 그 건물의 기능으로 그때 추가(TagSO)
+- **TODO(레시피 UI 시점)**: 레시피 변경 시 입력 버퍼 잔여 재료 처리 (출력 배출 또는 플레이어 환불)
+
+---
+
+## 2026-07-06 — TagSO 철회
+
+- 도입 근거였던 용처 3개가 전부 소멸/연기됨: 포트 필터는 `AcceptFilter`(레시피 참조)로 해결, 태그 재료 레시피는 기획 미확정, UI 분류는 UI 자체가 없음 → **소비자 0곳인 죽은 선언**이라 `AcceptedTypes`·`BuildingCategory`를 지운 것과 같은 기준으로 삭제
+- `TagSO.cs`, `GameDataSO.tags`, `HasTag()` 제거
+- **재도입 조건** (그때 파일 하나 + 필드 하나로 복원 가능):
+  1. "X 계열 아무거나" 재료 레시피가 기획으로 확정될 때
+  2. 필터 벨트/분배기 등 플레이어 설정형 필터 건물을 만들 때
+  3. UI 카테고리 필터가 생길 때

@@ -1,58 +1,42 @@
 using UnityEngine;
 
 /// <summary>
-/// 건물 배치/제거 시 시스템 호출 순서(GridRegistry → BuildingGraph → SimulationSystem)를
-/// 한 곳에 캡슐화한 정적 진입점.
+/// 배치/제거의 Unity 쪽 진입점 — 심 배치(FactorySim)와 뷰 생성(BuildingView)을 묶는다.
+/// 심만 필요하면(테스트 등) FactorySim.Place/Remove를 직접 호출하면 된다.
 /// </summary>
 public static class PlacementBridge
 {
     /// <param name="portOverride">인스턴스별 포트 형상 (벨트 커브 등). null이면 SO 포트 사용.</param>
     /// <param name="prefabOverride">인스턴스별 프리팹 (벨트 커브 메시 등). null이면 SO 프리팹 사용.</param>
-    public static BuildingInstance Place(BuildingDataSO so, Vector2Int origin, Vector3 pos = default, int rotSteps = 0,
+    public static Building Place(BuildingDataSO so, Vector2Int origin, Vector3 pos = default, int rotSteps = 0,
         PortDefinition[] portOverride = null, GameObject prefabOverride = null)
     {
+        var boot = FactoryBootstrap.Instance;
+        var b = boot.Sim.Place(so, origin, rotSteps, portOverride);
+
+        // 뷰 생성
         var prefab = prefabOverride != null ? prefabOverride : so.prefab;
-        GameObject go;
-        if (prefab != null) go = Object.Instantiate(prefab, pos, Quaternion.Euler(0, rotSteps * 90f, 0));
-        else go = new GameObject(so.name); // 프리팹 누락 시 크래시 방지용 빈 오브젝트
+        GameObject go = prefab != null
+            ? Object.Instantiate(prefab, pos, Quaternion.Euler(0, rotSteps * 90f, 0))
+            : new GameObject(so.name);   // 프리팹 누락 시 빈 오브젝트
 
-        var instance = go.GetComponent<BuildingInstance>();
-        if (instance == null) instance = go.AddComponent<BuildingInstance>();
+        var view = go.GetComponent<BuildingView>();
+        if (view == null) view = go.AddComponent<BuildingView>();
+        view.Building = b;
+        boot.RegisterView(b, view);
 
-        instance.Initialize(so, origin, rotSteps);
-        instance.PortOverride = portOverride;   // 포트 매칭(OnPlaced) 전에 설정
-
-        var rotSize = so.GetRotatedSize(rotSteps);
-        for (int x = 0; x < rotSize.x; x++)
-            for (int y = 0; y < rotSize.y; y++)
-                GridRegistry.Instance.Add(origin + new Vector2Int(x, y), instance);
-
-        BuildingGraph.Instance.OnPlaced(instance);
-        SimulationSystem.Instance.Register(instance);
-
-        return instance;
+        return b;
     }
 
-    public static void Remove(BuildingInstance instance)
+    public static void Remove(Building b)
     {
-        if (instance == null) return;
+        if (b == null || b.IsRemoved) return;
+        var boot = FactoryBootstrap.Instance;
 
-        // 0. 제거 표식 — 같은 프레임에 dirty 큐에 남아 있어도 Tick되지 않게
-        instance.IsRemoved = true;
+        boot.Sim.Remove(b);
 
-        // 1. SimulationSystem에서 제거
-        SimulationSystem.Instance.Unregister(instance);
-
-        // 2. BuildingGraph에서 연결 정리
-        BuildingGraph.Instance.OnRemoved(instance);
-
-        // 3. GridRegistry에서 점유 해제
-        var rotSize = instance.Data.GetRotatedSize(instance.RotationSteps);
-        for (int x = 0; x < rotSize.x; x++)
-            for (int y = 0; y < rotSize.y; y++)
-                GridRegistry.Instance.Remove(instance.Origin + new Vector2Int(x, y));
-
-        // 4. 게임 오브젝트 삭제
-        Object.Destroy(instance.gameObject);
+        var view = boot.GetView(b);
+        boot.UnregisterView(b);
+        if (view != null) Object.Destroy(view.gameObject);
     }
 }

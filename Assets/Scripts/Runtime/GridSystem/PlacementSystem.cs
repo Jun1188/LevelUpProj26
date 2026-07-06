@@ -50,7 +50,7 @@ public class PlacementSystem : MonoBehaviour
     private BeltShape beltShape;
 
     // 철거 모드 상태
-    private BuildingInstance hovered;                              // 지금 하이라이트 중인 건물
+    private Building hovered;                                      // 지금 하이라이트 중인 건물
     private readonly Dictionary<Renderer, Material[]> savedMats = new(); // 원본 머티리얼 백업
 
     void Awake()
@@ -191,11 +191,11 @@ public class PlacementSystem : MonoBehaviour
         }
 
         // 커서가 가리키는 칸 → 그 칸의 건물 찾기
-        BuildingInstance target = null;
+        Building target = null;
         if (TryGetGroundPoint(out Vector3 cursorPoint))
         {
             Vector2Int cell = grid.WorldToGrid(cursorPoint);
-            GridRegistry.Instance.GetAt(cell, out target);
+            target = FactoryBootstrap.Instance.Sim.Grid.GetAt(cell);
         }
 
         // 대상이 바뀌면 하이라이트 갱신
@@ -207,7 +207,7 @@ public class PlacementSystem : MonoBehaviour
     }
 
     /// <summary>특정 건물을 철거한다. 점유 칸 모두 해제 + 인스턴스 파괴.</summary>
-    public void Demolish(BuildingInstance b)
+    public void Demolish(Building b)
     {
         if (b == null) return;
 
@@ -223,13 +223,10 @@ public class PlacementSystem : MonoBehaviour
 
     /// <summary>칸 좌표로 철거 (외부 호출용 편의 오버로드).</summary>
     public void Demolish(Vector2Int cell)
-    {
-        if (GridRegistry.Instance.GetAt(cell, out BuildingInstance b))
-            Demolish(b);
-    }
+        => Demolish(FactoryBootstrap.Instance.Sim.Grid.GetAt(cell));
 
     // ---- 하이라이트 적용/복원 ----
-    private void SetHovered(BuildingInstance b)
+    private void SetHovered(Building b)
     {
         if (hovered == b) return;   // 변화 없으면 그대로
         ClearHovered();             // 이전 대상 원복
@@ -237,7 +234,10 @@ public class PlacementSystem : MonoBehaviour
         hovered = b;
         if (b == null || demolishHighlightMat == null) return;
 
-        foreach (var r in b.GetComponentsInChildren<Renderer>())
+        var view = FactoryBootstrap.Instance.GetView(b);
+        if (view == null) return;
+
+        foreach (var r in view.GetComponentsInChildren<Renderer>())
         {
             savedMats[r] = r.sharedMaterials;               // 원본 백업
             var arr = new Material[r.sharedMaterials.Length];
@@ -303,7 +303,7 @@ public class PlacementSystem : MonoBehaviour
     }
 
     private bool CanPlace(Vector2Int origin, Vector2Int size)
-        => GetCells(origin, size).All(c => !GridRegistry.Instance.IsOccupied(c));
+        => GetCells(origin, size).All(c => !FactoryBootstrap.Instance.Sim.Grid.IsOccupied(c));
 
     private void SpawnPreview()
     {

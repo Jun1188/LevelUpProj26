@@ -8,8 +8,8 @@ public class AssemblerDataSO : BuildingDataSO
     [Header("레시피")]
     public RecipeDataSO[] availableRecipes;
 
-    public override IBuildingBehavior CreateBehavior(BuildingInstance instance)
-        => new AssemblerBehavior(instance, this);
+    public override IBuildingBehavior CreateBehavior(Building building)
+        => new AssemblerBehavior(building, this);
 
     protected override void OnValidate()
     {
@@ -43,12 +43,12 @@ public class AssemblerDataSO : BuildingDataSO
 /// </summary>
 public class AssemblerBehavior : IBuildingBehavior
 {
-    readonly BuildingInstance _b;
+    readonly Building _b;
     RecipeDataSO _recipe;
     float        _readyAt;   // 조합 완료 예정 시각
     bool         _crafting;
 
-    public AssemblerBehavior(BuildingInstance b, AssemblerDataSO data)
+    public AssemblerBehavior(Building b, AssemblerDataSO data)
     {
         _b = b;
         // 한 재료가 입력 슬롯 전부를 독점해 다른 재료가 못 들어오는 데드락 방지
@@ -65,7 +65,7 @@ public class AssemblerBehavior : IBuildingBehavior
         if (r != null && r.inputs != null && r.inputs.Length > _b.Input.SlotCount)
         {
             Debug.LogWarning($"[Assembler] 레시피 '{r.displayName}'의 재료 종류({r.inputs.Length})가 " +
-                             $"입력 슬롯({_b.Input.SlotCount})보다 많아 거부됨", _b);
+                             $"입력 슬롯({_b.Input.SlotCount})보다 많아 거부됨");
             return;
         }
         _recipe = r;
@@ -84,7 +84,7 @@ public class AssemblerBehavior : IBuildingBehavior
     public void Tick(float dt)
     {
         if (_recipe == null) return;
-        var sim = SimulationSystem.Instance;
+        var sim = _b.Sim;
 
         // 1. 출력 배출 시도 — 완료 판정보다 먼저 버퍼를 비워야 stall이 풀린다
         _b.FlushOutputs();

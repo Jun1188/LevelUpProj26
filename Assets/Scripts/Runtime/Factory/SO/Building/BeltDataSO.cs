@@ -9,7 +9,7 @@ public enum BeltShape { Straight, CurveL, CurveR }
 /// <summary>
 /// 컨베이어 벨트. 연속된 같은 종류의 벨트는 BeltSegment로 묶여 처리된다.
 /// 직선/커브는 별도 SO가 아니라 배치 시 결정되는 모양(BeltShape) —
-/// 포트는 BuildPorts()로 계산해 BuildingInstance.PortOverride에 주입한다.
+/// 포트는 BuildPorts()로 계산해 Building.PortOverride에 주입한다.
 /// </summary>
 [CreateAssetMenu(fileName = "NewBelt", menuName = "Factory/Buildings/Belt")]
 public class BeltDataSO : BuildingDataSO
@@ -29,8 +29,8 @@ public class BeltDataSO : BuildingDataSO
         _                => prefab,
     };
 
-    public override IBuildingBehavior CreateBehavior(BuildingInstance instance)
-        => new BeltBehavior(instance);
+    public override IBuildingBehavior CreateBehavior(Building building)
+        => new BeltBehavior(building);
 
     // ── 모양별 포트 계산 (모양 3 × 회전 4 = 12조합 캐시)
 
@@ -68,13 +68,13 @@ public class BeltDataSO : BuildingDataSO
 /// </summary>
 public class BeltBehavior : IBuildingBehavior
 {
-    readonly BuildingInstance _b;
-    public BeltBehavior(BuildingInstance b) => _b = b;
+    readonly Building _b;
+    public BeltBehavior(Building b) => _b = b;
     public void OnAfterPlaced() { }
 
     public void Tick(float dt)
     {
-        var seg = BeltSegmentManager.Instance.EnsureSegment(_b);  // 항상 세그먼트 존재
+        var seg = _b.Sim.Belts.EnsureSegment(_b);  // 항상 세그먼트 존재
 
         // 입력 버퍼 아이템을 벨트 위로 (입구가 막혔으면 받아준 만큼만 소비).
         // TryAddItem은 세그먼트 입구(pos 0) 삽입 — 생산자로부터 입력을 받는 벨트는
@@ -96,6 +96,6 @@ public class BeltBehavior : IBuildingBehavior
 
         // 입구가 막혀 버퍼가 안 비면 다음 틱에 재시도
         if (_b.Input.HasAny)
-            SimulationSystem.Instance.MarkDirty(_b);
+            _b.Sim.MarkDirty(_b);
     }
 }

@@ -4,8 +4,8 @@ using UnityEngine;
 [CreateAssetMenu(fileName = "NewStorage", menuName = "Factory/Buildings/Storage")]
 public class StorageDataSO : BuildingDataSO
 {
-    public override IBuildingBehavior CreateBehavior(BuildingInstance instance)
-        => new StorageBehavior(instance);
+    public override IBuildingBehavior CreateBehavior(Building building)
+        => new StorageBehavior(building);
 }
 
 // ─── 행동 ──────────────────────────────────────────────────────
@@ -16,8 +16,8 @@ public class StorageDataSO : BuildingDataSO
 /// </summary>
 public class StorageBehavior : IBuildingBehavior
 {
-    readonly BuildingInstance _b;
-    public StorageBehavior(BuildingInstance b) => _b = b;
+    readonly Building _b;
+    public StorageBehavior(Building b) => _b = b;
     public void OnAfterPlaced() { }
 
     public void Tick(float dt)

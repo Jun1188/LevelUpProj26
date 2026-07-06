@@ -165,6 +165,22 @@
 
 ---
 
+## 2026-07-07 — 재설계 3단계: 심/뷰 분리 완료
+
+- **구조**: 시뮬레이션 전체가 plain C#으로 이동 — Unity 접점은 딱 2개
+  - `FactorySim` — 루트: 시계(Now)·Dirty Queue·Wake heap·배치/제거(`Place`/`Remove`)·`GridIndex`(구 GridRegistry)·`BuildingGraph`·`BeltSegmentManager`를 소유. `Advance(dt)`로 구동
+  - `Building` — 심 엔티티 (구 BuildingInstance). 행동은 `_b.Sim`으로 심 서비스 접근 (싱글톤 전멸)
+  - `FactoryBootstrap` — 유일한 드라이버 Mono: 심 생성 + 매 프레임 Advance + Building↔View 매핑
+  - `BuildingView` — GO와 심을 잇는 다리 (필드 하나). **BuildingInstance.cs를 GUID 유지한 채 리네임**해서 프리팹의 기존 컴포넌트 참조가 그대로 BuildingView로 살아있음
+- **삭제**: BuildingSimulation.cs(SimulationSystem), GridRegistry.cs, MiningService(→ `FactorySim.GetResourceAt` 주입)
+- **효과**:
+  - 특성화 테스트가 씬·GameObject·프레임 대기 없이 **동기 실행** — 전체 스위트가 첫 프레임에 즉시 완료 (기존: 배속 10으로 20~30초)
+  - 세이브/로드 기반 완성: 심 상태 전체가 plain 데이터 (Building/ItemContainer/BeltSegment)
+  - 철거 시 Unity Destroy 지연에 의존하던 코드 소멸 (IsRemoved 플래그로 일원화)
+- **씬 요구사항**: FactoryBootstrap 컴포넌트 하나만 있으면 됨 (기존 씬의 FactoryBootstrap이 그대로 드라이버가 됨 — 씬 수정 불필요). tps/maxCatchUpTicks는 드라이버 인스펙터에서 설정
+
+---
+
 ## 2026-07-07 — 벨트 통합: 직선/L/R 에셋 3종 → 벨트 1종 + 배치 시 모양 결정
 
 - **문제**: 커브가 별도 SO라 (a) 플레이어가 3종을 오가며 배치해야 하고, (b) "같은 종류만 병합" 가드를 넣으면 코너마다 세그먼트가 끊김

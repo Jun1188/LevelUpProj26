@@ -1,6 +1,10 @@
 using System.Text;
 using UnityEngine;
 
+/// <summary>
+/// 수동 플레이 테스트용 유틸: 건물 클릭 → 버퍼 상태 표시, 연결/벨트 아이템 gizmo.
+/// FactoryBootstrap(드라이버)이 있는 씬에서 사용.
+/// </summary>
 public class FactoryTest : MonoBehaviour
 {
     [Header("ScriptableObjects — Inspector에서 연결")]
@@ -9,22 +13,21 @@ public class FactoryTest : MonoBehaviour
     private Camera mainCamera;
     private string currentBuildingInfo = "";
 
+    FactorySim Sim => FactoryBootstrap.Instance != null ? FactoryBootstrap.Instance.Sim : null;
+
     void Start()
     {
-        // 메인 카메라 참조 캐싱
         mainCamera = Camera.main;
 
-        // 기존 테스트용 건물 자동 배치 로직 유지
-        MiningService.GetItemAt = _ => ironOreSO;
+        // 테스트용: 모든 좌표에서 철광석 채굴
+        if (Sim != null)
+            Sim.GetResourceAt = _ => ironOreSO;
     }
 
     void Update()
     {
-        // 마우스 좌클릭 감지
         if (Input.GetMouseButtonDown(0))
-        {
             DetectAndDisplayBuilding();
-        }
     }
 
     private void DetectAndDisplayBuilding()
@@ -32,28 +35,19 @@ public class FactoryTest : MonoBehaviour
         if (mainCamera == null) mainCamera = Camera.main;
         if (mainCamera == null) return;
 
-        // 마우스 커서 위치로부터 3D 월드로 향하는 레이(Ray) 생성
         Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
-
-        // 레이캐스트를 발사하여 오브젝트 충돌 검사
         if (Physics.Raycast(ray, out RaycastHit hit, 1000f))
         {
-            // 부딪힌 오브젝트 또는 그 부모에게서 BuildingInstance 컴포넌트가 있는지 탐색
-            BuildingInstance clickedBuilding = hit.collider.GetComponentInParent<BuildingInstance>();
-
-            if (clickedBuilding != null)
-            {
-                // 건물을 찾았다면 정보 출력
-                PrintBuildingData(clickedBuilding);
-            }
+            var view = hit.collider.GetComponentInParent<BuildingView>();
+            if (view != null && view.Building != null)
+                PrintBuildingData(view.Building);
         }
     }
 
-    private void PrintBuildingData(BuildingInstance building)
+    private void PrintBuildingData(Building building)
     {
         StringBuilder sb = new StringBuilder();
 
-        // 1. 건물 기본 정보 서식화
         sb.AppendLine("--------------------------------------------------");
         sb.AppendLine("[ 건물 정보 ]");
         sb.AppendLine($"- 이름 : {building.Data.displayName}");
@@ -62,7 +56,6 @@ public class FactoryTest : MonoBehaviour
         sb.AppendLine($"- 회전 : {building.RotationSteps}단계 ({building.RotationSteps * 90}도)");
         sb.AppendLine();
 
-        // 2. 인벤토리 버퍼 정보 서식화
         sb.AppendLine("[ 버퍼 상태 ]");
         AppendContainer(sb, "입력 버퍼", building.Input);
         sb.AppendLine();
@@ -86,6 +79,14 @@ public class FactoryTest : MonoBehaviour
         GUI.TextArea(new Rect(20, 200, 400, 300), currentBuildingInfo);
     }
 
+    // ─── Gizmo — 심 상태 시각화 (뷰 transform 경유) ─────────────
+
+    static Transform ViewOf(Building b)
+    {
+        var view = FactoryBootstrap.Instance != null ? FactoryBootstrap.Instance.GetView(b) : null;
+        return view != null ? view.transform : null;
+    }
+
     static Vector3 SegmentPosToWorld(BeltSegment seg, float pos)
     {
         int n = seg.Belts.Count;
@@ -94,22 +95,26 @@ public class FactoryTest : MonoBehaviour
         //   u = (n - 0.5) - pos   (pos 클수록 u 작음 = 출구 쪽 index 0)
         float u = (n - 0.5f) - pos;
 
+        Transform T(int i) => ViewOf(seg.Belts[i]);
+
         // 입구 바깥(파랑 = Belts[^1] 뒤로 외삽)
         if (u >= n - 1)
         {
-            Vector3 c = seg.Belts[n - 1].transform.position;
-            Vector3 dir = (n > 1)
-                ? (seg.Belts[n - 2].transform.position - c).normalized   // 입구→출구 진행 방향
+            var last = T(n - 1); if (last == null) return default;
+            Vector3 c = last.position;
+            Vector3 dir = (n > 1 && T(n - 2) != null)
+                ? (T(n - 2).position - c).normalized   // 입구→출구 진행 방향
                 : ExitDir(seg.Belts[n - 1]);
-            return c + dir * (u - (n - 1)) * -1f;   // 입구 뒤쪽
+            return c + dir * (u - (n - 1)) * -1f;      // 입구 뒤쪽
         }
 
-        // 출구 바깥(빨강 = Belts[0] 앞으로 외삽, 조립기 쪽)
+        // 출구 바깥(빨강 = Belts[0] 앞으로 외삽)
         if (u <= 0f)
         {
-            Vector3 c = seg.Belts[0].transform.position;
-            Vector3 dir = (n > 1)
-                ? (c - seg.Belts[1].transform.position).normalized       // 진행 방향(출구 쪽)
+            var first = T(0); if (first == null) return default;
+            Vector3 c = first.position;
+            Vector3 dir = (n > 1 && T(1) != null)
+                ? (c - T(1).position).normalized       // 진행 방향(출구 쪽)
                 : ExitDir(seg.Belts[0]);
             return c + dir * (-u);
         }
@@ -117,39 +122,41 @@ public class FactoryTest : MonoBehaviour
         // 중간: 인접 벨트 중심 보간
         int j = Mathf.FloorToInt(u);
         float frac = u - j;
-        return Vector3.Lerp(seg.Belts[j].transform.position,
-                            seg.Belts[j + 1].transform.position, frac);
+        var a = T(j); var b = T(j + 1);
+        if (a == null || b == null) return default;
+        return Vector3.Lerp(a.position, b.position, frac);
     }
 
-    static Vector3 ExitDir(BuildingInstance b)
-        => (b.OutputConnections.Count > 0 && b.OutputConnections[0].To != null)
-           ? (b.OutputConnections[0].To.transform.position - b.transform.position).normalized
-           : b.transform.forward;
+    static Vector3 ExitDir(Building b)
+    {
+        var self = ViewOf(b);
+        if (self == null) return Vector3.forward;
+        if (b.OutputConnections.Count > 0)
+        {
+            var to = ViewOf(b.OutputConnections[0].To);
+            if (to != null) return (to.position - self.position).normalized;
+        }
+        return self.forward;
+    }
 
     void OnDrawGizmos()
     {
-        // 게임이 실행 중일 때만 기즈모 연산 수행
-        if (!Application.isPlaying) return;
+        if (!Application.isPlaying || Sim == null) return;
 
-        // 1. 씬 내의 모든 빌딩 인스턴스 검색
-        BuildingInstance[] allBuildings = FindObjectsByType<BuildingInstance>(FindObjectsSortMode.None);
-        if (allBuildings == null) return;
-
-        // 2. 모든 건물의 연결선 시각화 (녹색 선)
+        // 1. 모든 건물 연결선 시각화 (초록)
         Gizmos.color = Color.green;
-        foreach (var b in allBuildings)
+        foreach (var view in FindObjectsByType<BuildingView>(FindObjectsSortMode.None))
         {
+            var b = view.Building;
             if (b == null || b.OutputConnections == null) continue;
 
-            Vector3 startPos = b.transform.position + Vector3.up * 0.5f;
-
+            Vector3 startPos = view.transform.position + Vector3.up * 0.5f;
             foreach (var conn in b.OutputConnections)
             {
-                if (conn.To == null) continue;
+                var toT = ViewOf(conn.To);
+                if (toT == null) continue;
 
-                Vector3 endPos = conn.To.transform.position + Vector3.up * 0.5f;
-
-                // 출력 포트 -> 입력 포트 방향 직선
+                Vector3 endPos = toT.position + Vector3.up * 0.5f;
                 Gizmos.DrawLine(startPos, endPos);
 
                 // 흐름 방향 안내용 작은 구체
@@ -158,33 +165,26 @@ public class FactoryTest : MonoBehaviour
             }
         }
 
-        // 3. 모든 벨트 세그먼트의 아이템 실시간 위치 시각화 (노란색 구체)
-        var segManager = BeltSegmentManager.Instance;
-        if (segManager != null && segManager.Segments != null)
+        // 2. 벨트 세그먼트의 아이템 실시간 위치 (노랑) + 입구/출구 마커
+        foreach (var seg in Sim.Belts.Segments)
         {
+            int n = seg.Belts.Count;
+            if (n == 0) continue;
+
+            var exitT  = ViewOf(seg.Belts[0]);
+            var entryT = ViewOf(seg.Belts[n - 1]);
+            if (exitT == null || entryT == null) continue; // 철거 직후 과도기
+
+            Gizmos.color = Color.red;  Gizmos.DrawSphere(exitT.position  + Vector3.up, 0.25f); // 출구
+            Gizmos.color = Color.blue; Gizmos.DrawSphere(entryT.position + Vector3.up, 0.25f); // 입구
             Gizmos.color = Color.yellow;
 
-            foreach (var seg in segManager.Segments)
+            if (!seg.HasItems) continue;
+            foreach (var (item, pos) in seg.Items)
             {
-                int n = seg.Belts.Count;
-                if (n == 0) continue;
-
-                // 철거 직후 프레임에는 파괴된 벨트가 남아 있을 수 있음
-                if (seg.Belts[0] == null || seg.Belts[n - 1] == null) continue;
-
-                // Belts[0] / Belts[^1] 위치에 큰 마커 (입구·출구 식별용)
-                Gizmos.color = Color.red; Gizmos.DrawSphere(seg.Belts[0].transform.position + Vector3.up, 0.25f);   // Belts[0]
-                Gizmos.color = Color.blue; Gizmos.DrawSphere(seg.Belts[n - 1].transform.position + Vector3.up, 0.25f); // Belts[^1]
-                Gizmos.color = Color.yellow;
-
-                if (!seg.HasItems) continue;
-
-                foreach (var (item, pos) in seg.Items)
-                {
-                    Vector3 wp = SegmentPosToWorld(seg, pos);
-                    wp.y += 0.6f;
-                    Gizmos.DrawSphere(wp, 0.15f);
-                }
+                Vector3 wp = SegmentPosToWorld(seg, pos);
+                wp.y += 0.6f;
+                Gizmos.DrawSphere(wp, 0.15f);
             }
         }
     }

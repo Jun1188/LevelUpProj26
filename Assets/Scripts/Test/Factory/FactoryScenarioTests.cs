@@ -1,56 +1,43 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
 /// Factory 시스템 특성화 테스트 하네스.
-/// 재설계 전 "지금의 올바른 동작"을 박제해, 내부를 갈아엎어도 회귀를 잡아낸다.
+/// 재설계 전후의 "올바른 동작"을 박제해, 내부를 갈아엎어도 회귀를 잡아낸다.
 ///
-/// 사용법: 빈 씬에 빈 GameObject를 만들고 이 컴포넌트를 붙인 뒤 플레이.
-///         6개 시나리오가 자동 실행되고 좌상단/콘솔에 PASS/FAIL이 표시된다.
-///         (FactoryBootstrap이 있는 씬에서는 싱글톤이 충돌하므로 실행 금지)
+/// 사용법: 아무 씬에나 빈 GameObject를 만들고 이 컴포넌트를 붙인 뒤 플레이.
+///         심/뷰 분리 덕에 씬·GameObject·프레임 없이 FactorySim을 직접 생성해
+///         동기로 돌린다 — 전체 스위트가 첫 프레임에 즉시 완료된다.
 ///
-/// NUnit(Test Runner)이 아닌 씬 하네스인 이유:
-///   테스트 asmdef는 Assembly-CSharp을 참조할 수 없는데, Runtime 코드가
-///   Test 폴더 코드를 역참조 중이라(PlayerController→Entity, InventoryUI→ItemSocket)
-///   어셈블리 분리가 현재 불가능. 심/뷰 분리 후 EditMode NUnit으로 이전 예정.
+/// NUnit(Test Runner)이 아닌 이유: 테스트 asmdef는 Assembly-CSharp을 참조할 수
+/// 없는데 Runtime↔Test 코드가 상호 참조 중이라 어셈블리 분리가 불가.
+/// (심은 이미 plain C#이라, 어셈블리 정리가 되면 그대로 EditMode NUnit 이전 가능)
 /// </summary>
 public class FactoryScenarioTests : MonoBehaviour
 {
-    [Tooltip("테스트 가속용 Time.timeScale. 틱 따라잡기 상한(5틱/프레임)을 넘지 않는 10 권장.")]
-    [SerializeField] float _timeScale = 10f;
-
     readonly List<(string name, bool pass, string detail)> _results = new();
     readonly List<string> _fails = new();               // 실행 중인 시나리오의 실패 메시지
     readonly List<ScriptableObject> _createdSOs = new();
 
-    GameObject _systems;
+    FactorySim _sim;
     ItemDataSO _ore, _ingot;
 
     // ─── 실행 루프 ──────────────────────────────────────────────
 
-    IEnumerator Start()
+    void Start()
     {
-        if (SimulationSystem.Instance != null)
-        {
-            Debug.LogError("[FactoryScenarioTests] 씬에 이미 Factory 시스템이 있습니다. 빈 씬에서 실행하세요.");
-            yield break;
-        }
-
-        Time.timeScale = _timeScale;
         _ore   = MakeItem("TestOre",   ItemType.Ore);
         _ingot = MakeItem("TestIngot", ItemType.Ingot);
 
-        yield return Run("1. 기본 체인 운반",              S1_BasicChain);
-        yield return Run("2. 설치 순서 무관 (stall 데드락)", S2_OrderIndependence);
-        yield return Run("3. 막힌 체인 무유실·정지",        S3_StallNoLoss);
-        yield return Run("4. 중간 철거 분할·복구",          S4_DemolishSplit);
-        yield return Run("5. 회전 배치 연결",              S5_RotatedChain);
-        yield return Run("6. 어셈블러 조합 체인",           S6_AssemblerChain);
-        yield return Run("7. 커브 벨트 코너 체인",          S7_CurvedChain);
+        Run("1. 기본 체인 운반",              S1_BasicChain);
+        Run("2. 설치 순서 무관 (stall 데드락)", S2_OrderIndependence);
+        Run("3. 막힌 체인 무유실·정지",        S3_StallNoLoss);
+        Run("4. 중간 철거 분할·복구",          S4_DemolishSplit);
+        Run("5. 회전 배치 연결",              S5_RotatedChain);
+        Run("6. 어셈블러 조합 체인",           S6_AssemblerChain);
+        Run("7. 커브 벨트 코너 체인",          S7_CurvedChain);
 
-        Time.timeScale = 1f;
         foreach (var so in _createdSOs) DestroyImmediate(so);
         _createdSOs.Clear();
 
@@ -62,94 +49,63 @@ public class FactoryScenarioTests : MonoBehaviour
     }
 
     /// <summary>시나리오 1개를 격리 실행. 예외도 실패로 기록하고 다음으로 넘어간다.</summary>
-    IEnumerator Run(string name, Func<IEnumerator> scenario)
+    void Run(string name, Action scenario)
     {
-        Setup();
+        // 시나리오마다 새 심 — plain C#이라 싱글톤 정리·프레임 대기가 필요 없다
+        _sim = new FactorySim(tps: 10f);
+        _sim.GetResourceAt = _ => _ore;
+        _beltSO = null;   // 벨트 SO도 시나리오별로 새로
         _fails.Clear();
 
-        var body = scenario();
-        string exception = null;
-        while (true)
-        {
-            object cur;
-            try
-            {
-                if (!body.MoveNext()) break;
-                cur = body.Current;
-            }
-            catch (Exception e)
-            {
-                exception = e.ToString();
-                break;
-            }
-            yield return cur;
-        }
+        try { scenario(); }
+        catch (Exception e) { _fails.Add("예외 발생:\n" + e); }
 
-        if (exception != null) _fails.Add("예외 발생:\n" + exception);
         _results.Add((name, _fails.Count == 0, string.Join("\n", _fails)));
-        Teardown();
-    }
-
-    void Setup()
-    {
-        _systems = new GameObject("TestSystems");
-        _systems.AddComponent<GridRegistry>();
-        _systems.AddComponent<BuildingGraph>();
-        _systems.AddComponent<SimulationSystem>();
-        _systems.AddComponent<BeltSegmentManager>();
-        MiningService.GetItemAt = _ => _ore;
-    }
-
-    void Teardown()
-    {
-        MiningService.GetItemAt = null;
-        foreach (var b in FindObjectsByType<BuildingInstance>(FindObjectsInactive.Include, FindObjectsSortMode.None))
-            DestroyImmediate(b.gameObject);
-        DestroyImmediate(_systems); // 싱글톤 파괴 → 다음 Setup에서 새로 생성됨
+        _sim = null;
     }
 
     // ─── 시나리오 ──────────────────────────────────────────────
 
     /// <summary>마이너→벨트×2→저장소: 아이템이 끝까지 운반된다.</summary>
-    IEnumerator S1_BasicChain()
+    void S1_BasicChain()
     {
         Place(Miner(), 0, 0);
-        Place(Belt(), 1, 0);
-        Place(Belt(), 2, 0);
+        PlaceBelt(1, 0, 0, BeltShape.Straight);
+        PlaceBelt(2, 0, 0, BeltShape.Straight);
         var store = Place(Storage(), 3, 0);
 
-        yield return WaitSim(4f);
+        RunSim(4f);
         Expect(StoredCount(store, _ore) >= 1,
             $"저장소에 아이템이 도착해야 함 (실제: {StoredCount(store, _ore)}개)");
     }
 
     /// <summary>마이너를 먼저 설치해 stall시킨 뒤 벨트를 연결해도 흐른다. (데드락 회귀 테스트)</summary>
-    IEnumerator S2_OrderIndependence()
+    void S2_OrderIndependence()
     {
         var miner = Place(Miner(outBuf: 2), 0, 0);
 
-        yield return WaitSim(1.5f); // 버퍼(2)가 차고 stall될 시간
+        RunSim(1.5f); // 버퍼(2)가 차고 stall될 시간
         int stalled = miner.Output.CountOf(_ore);
         Expect(stalled == 2, $"출력이 막히면 버퍼 상한(2)에서 생산이 멈춰야 함 (실제: {stalled}개)");
 
-        Place(Belt(), 1, 0);
+        PlaceBelt(1, 0, 0, BeltShape.Straight);
         var store = Place(Storage(), 2, 0);
 
-        yield return WaitSim(3f);
+        RunSim(3f);
         Expect(StoredCount(store, _ore) >= 1,
             $"벨트 연결 후 stall이 풀려 아이템이 흘러야 함 (실제 저장소: {StoredCount(store, _ore)}개)");
     }
 
     /// <summary>출구 없는 체인: 가득 차면 생산이 멈추고, 총량이 더 늘지도 사라지지도 않는다.</summary>
-    IEnumerator S3_StallNoLoss()
+    void S3_StallNoLoss()
     {
         var miner = Place(Miner(outBuf: 2), 0, 0);
-        var belt  = Place(Belt(), 1, 0);
+        var belt  = PlaceBelt(1, 0, 0, BeltShape.Straight);
 
-        yield return WaitSim(6f); // 모든 버퍼·벨트가 가득 찰 시간
+        RunSim(6f); // 모든 버퍼·벨트가 가득 찰 시간
         int total1 = SystemTotal(miner, belt);
 
-        yield return WaitSim(2f);
+        RunSim(2f);
         int total2 = SystemTotal(miner, belt);
 
         Expect(total1 == total2, $"가득 찬 뒤에는 총량이 변하면 안 됨 (증발/과잉생산): {total1} → {total2}");
@@ -157,119 +113,111 @@ public class FactoryScenarioTests : MonoBehaviour
     }
 
     /// <summary>벨트 중간 철거 → 세그먼트 2분할, 재설치 → 흐름 복구.</summary>
-    IEnumerator S4_DemolishSplit()
+    void S4_DemolishSplit()
     {
-        var miner = Place(Miner(), 0, 0);
-        var b1 = Place(Belt(), 1, 0);
-        var b2 = Place(Belt(), 2, 0);
-        var b3 = Place(Belt(), 3, 0);
+        Place(Miner(), 0, 0);
+        var b1 = PlaceBelt(1, 0, 0, BeltShape.Straight);
+        var b2 = PlaceBelt(2, 0, 0, BeltShape.Straight);
+        var b3 = PlaceBelt(3, 0, 0, BeltShape.Straight);
         var store = Place(Storage(), 4, 0);
 
-        yield return WaitSim(2f);
-        PlacementBridge.Remove(b2);
-        yield return null; // Destroy 반영 프레임
+        RunSim(2f);
+        _sim.Remove(b2);
 
-        var s1 = BeltSegmentManager.Instance.GetSegment(b1);
-        var s3 = BeltSegmentManager.Instance.GetSegment(b3);
+        var s1 = _sim.Belts.GetSegment(b1);
+        var s3 = _sim.Belts.GetSegment(b3);
         Expect(s1 != null && s3 != null && s1 != s3, "철거 후 상류/하류가 별도 세그먼트로 나뉘어야 함");
 
         int before = StoredCount(store, _ore);
-        Place(Belt(), 2, 0);
-        yield return WaitSim(4f);
+        PlaceBelt(2, 0, 0, BeltShape.Straight);
+        RunSim(4f);
         Expect(StoredCount(store, _ore) > before,
             $"재설치 후 흐름이 복구돼야 함 (저장소: {before} → {StoredCount(store, _ore)}개)");
     }
 
     /// <summary>회전 배치(남향 체인)에서도 포트가 연결된다.</summary>
-    IEnumerator S5_RotatedChain()
+    void S5_RotatedChain()
     {
         Place(Miner(), 0, 0, rot: 1);            // 출력 East → South
-        Place(Belt(), 0, -1, rot: 1);            // 입력 West→North, 출력 East→South
+        PlaceBelt(0, -1, 1, BeltShape.Straight); // 입력 North, 출력 South
         var store = Place(Storage(), 0, -2, rot: 1);
 
-        yield return WaitSim(4f);
+        RunSim(4f);
         Expect(StoredCount(store, _ore) >= 1,
             $"회전된 체인에서도 아이템이 도착해야 함 (실제: {StoredCount(store, _ore)}개)");
+    }
+
+    /// <summary>마이너→벨트→어셈블러(2광석=1주괴)→벨트→저장소.</summary>
+    void S6_AssemblerChain()
+    {
+        var recipe = MakeRecipe(_ore, 2, _ingot, 1, craftTime: 0.3f);
+
+        Place(Miner(), 0, 0);
+        PlaceBelt(1, 0, 0, BeltShape.Straight);
+        Place(Assembler(recipe), 2, 0);
+        PlaceBelt(3, 0, 0, BeltShape.Straight);
+        var store = Place(Storage(), 4, 0);
+
+        RunSim(6f);
+        Expect(StoredCount(store, _ingot) >= 1,
+            $"조합된 주괴가 저장소에 도착해야 함 (실제: {StoredCount(store, _ingot)}개)");
     }
 
     /// <summary>
     /// L커브로 북쪽으로 꺾이는 체인: 마이너→벨트(동)→커브(동→북)→벨트(북)→저장소.
     /// 커브 포함 전체가 하나의 세그먼트로 병합되고 아이템이 도착해야 한다.
     /// </summary>
-    IEnumerator S7_CurvedChain()
+    void S7_CurvedChain()
     {
         Place(Miner(), 0, 0);
-        var b1 = PlaceBelt(1, 0, rot: 0, BeltShape.Straight);   // 동쪽으로
-        var b2 = PlaceBelt(2, 0, rot: 3, BeltShape.CurveL);     // 서쪽에서 받아 북쪽으로
-        var b3 = PlaceBelt(2, 1, rot: 3, BeltShape.Straight);   // 북쪽으로
-        var store = Place(Storage(), 2, 2, rot: 3);             // 남쪽(벨트)에서 받음
+        var b1 = PlaceBelt(1, 0, 0, BeltShape.Straight);    // 동쪽으로
+        var b2 = PlaceBelt(2, 0, 3, BeltShape.CurveL);      // 서쪽에서 받아 북쪽으로
+        var b3 = PlaceBelt(2, 1, 3, BeltShape.Straight);    // 북쪽으로
+        var store = Place(Storage(), 2, 2, rot: 3);         // 남쪽(벨트)에서 받음
 
-        var seg = BeltSegmentManager.Instance.GetSegment(b1);
-        Expect(seg != null && seg == BeltSegmentManager.Instance.GetSegment(b2)
-                           && seg == BeltSegmentManager.Instance.GetSegment(b3),
+        var seg = _sim.Belts.GetSegment(b1);
+        Expect(seg != null && seg == _sim.Belts.GetSegment(b2) && seg == _sim.Belts.GetSegment(b3),
             "커브를 포함한 같은 종류 벨트는 하나의 세그먼트로 병합돼야 함");
 
-        yield return WaitSim(5f);
+        RunSim(5f);
         Expect(StoredCount(store, _ore) >= 1,
             $"커브 체인에서도 아이템이 도착해야 함 (실제: {StoredCount(store, _ore)}개)");
     }
 
-    /// <summary>마이너→벨트→어셈블러(2광석=1주괴)→벨트→저장소.</summary>
-    IEnumerator S6_AssemblerChain()
-    {
-        var recipe = MakeRecipe(_ore, 2, _ingot, 1, craftTime: 0.3f);
-
-        Place(Miner(), 0, 0);
-        Place(Belt(), 1, 0);
-        Place(Assembler(recipe), 2, 0);
-        Place(Belt(), 3, 0);
-        var store = Place(Storage(), 4, 0);
-
-        yield return WaitSim(6f);
-        Expect(StoredCount(store, _ingot) >= 1,
-            $"조합된 주괴가 저장소에 도착해야 함 (실제: {StoredCount(store, _ingot)}개)");
-    }
-
-    // ─── 검증/대기 헬퍼 ─────────────────────────────────────────
+    // ─── 검증/구동 헬퍼 ─────────────────────────────────────────
 
     void Expect(bool condition, string message)
     {
         if (!condition) _fails.Add(message);
     }
 
-    /// <summary>시뮬레이션 시간 기준 대기. 벽시계 30초를 넘기면 중단(무한 대기 방지).</summary>
-    IEnumerator WaitSim(float simSeconds)
+    /// <summary>시뮬레이션을 simSeconds만큼 동기로 진행 (프레임 대기 없음).</summary>
+    void RunSim(float simSeconds)
     {
-        float target = SimulationSystem.Instance.Now + simSeconds;
-        float deadline = Time.realtimeSinceStartup + 30f;
-        while (SimulationSystem.Instance.Now < target)
-        {
-            if (Time.realtimeSinceStartup > deadline)
-                throw new TimeoutException($"시뮬레이션이 진행되지 않음 (Now={SimulationSystem.Instance.Now})");
-            yield return null;
-        }
+        int ticks = Mathf.CeilToInt(simSeconds / 0.1f);
+        for (int i = 0; i < ticks; i++)
+            _sim.Advance(0.1f);
     }
 
-    static int StoredCount(BuildingInstance store, ItemDataSO item)
+    static int StoredCount(Building store, ItemDataSO item)
         => store.Input.CountOf(item) + store.Output.CountOf(item);
 
     /// <summary>막힌 체인 검증용: 마이너 출력 + 벨트 입력 버퍼 + 벨트 위 아이템 총합.</summary>
-    int SystemTotal(BuildingInstance miner, BuildingInstance belt)
+    int SystemTotal(Building miner, Building belt)
     {
         int total = miner.Output.CountOf(_ore) + belt.Input.CountOf(_ore);
-        var seg = BeltSegmentManager.Instance.GetSegment(belt);
+        var seg = _sim.Belts.GetSegment(belt);
         if (seg != null) total += seg.Items.Count;
         return total;
     }
 
-    // ─── 배치/SO 생성 헬퍼 (테스트 자체 완결 — Data 폴더 에셋에 의존하지 않음) ──
+    // ─── 배치/SO 생성 헬퍼 (심 직접 호출 — 뷰/GameObject 불필요) ──
 
-    static BuildingInstance Place(BuildingDataSO so, int x, int y, int rot = 0)
-        => PlacementBridge.Place(so, new Vector2Int(x, y), default, rot);
+    Building Place(BuildingDataSO so, int x, int y, int rot = 0)
+        => _sim.Place(so, new Vector2Int(x, y), rot);
 
-    BuildingInstance PlaceBelt(int x, int y, int rot, BeltShape shape)
-        => PlacementBridge.Place(Belt(), new Vector2Int(x, y), default, rot,
-            BeltDataSO.BuildPorts(shape, rot));
+    Building PlaceBelt(int x, int y, int rot, BeltShape shape)
+        => _sim.Place(Belt(), new Vector2Int(x, y), rot, BeltDataSO.BuildPorts(shape, rot));
 
     BuildingDataSO Miner(float ptime = 0.2f, int outBuf = 5)
     {
@@ -280,7 +228,7 @@ public class FactoryScenarioTests : MonoBehaviour
         return so;
     }
 
-    // 벨트는 단일 SO를 공유 — 병합 가드가 "같은 에셋"만 병합하므로 실제 게임과 같은 조건
+    // 벨트는 시나리오 안에서 단일 SO를 공유 — 병합 가드가 "같은 에셋"만 병합하므로
     BeltDataSO _beltSO;
     BuildingDataSO Belt() =>
         _beltSO != null ? _beltSO : _beltSO =
@@ -311,7 +259,7 @@ public class FactoryScenarioTests : MonoBehaviour
         so.ports          = ports;
         so.inputSlots     = 1;
         so.outputSlots    = 1;
-        so.bufferStackCap = stackCap;   // 1칸 × stackCap = 기존 "최대 n개" 의미 유지
+        so.bufferStackCap = stackCap;   // 1칸 × stackCap = "최대 n개" 의미
         _createdSOs.Add(so);
         return so;
     }

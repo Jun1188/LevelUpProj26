@@ -72,7 +72,7 @@ public class PortDefinition
 public interface IBuildingBehavior
 {
     /// <summary>
-    /// SimulationSystem이 이 건물이 깨어 있는 틱에 호출.
+    /// FactorySim이 이 건물이 깨어 있는 틱에 호출.
     /// (MarkDirty로 등록됐거나 ScheduleWake 예약 시각이 됐을 때)
     /// </summary>
     void Tick(float dt);
@@ -116,8 +116,8 @@ public abstract class BuildingDataSO : GameDataSO
     [Tooltip("버퍼 스택 상한. 0 = 아이템 기본값(64). 기계는 5~10 권장 — 과잉 보관 방지.")]
     public int bufferStackCap = 0;
 
-    /// <summary>이 건물의 런타임 행동 생성. BuildingInstance.Initialize에서 호출.</summary>
-    public abstract IBuildingBehavior CreateBehavior(BuildingInstance instance);
+    /// <summary>이 건물의 런타임 행동 생성. Building 생성자에서 호출.</summary>
+    public abstract IBuildingBehavior CreateBehavior(Building building);
 
     // ── 회전 지원 (배치 시 사용, 상호작용 로직과 무관)
     //    4방향 포트 배열을 최초 요청 시 1회 계산해 캐싱한다.

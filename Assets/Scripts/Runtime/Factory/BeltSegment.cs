@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// 연속으로 연결된 벨트 체인을 하나의 유닛으로 처리.
+/// 연속으로 연결된 같은 종류의 벨트 체인을 하나의 유닛으로 처리. (plain C#)
 ///
 /// 문제: 벨트 100개 체인 → 100번 Tick, 100번 MarkDirty
 /// 해결: 100개를 BeltSegment 1개로 통합 → 1번 Tick
@@ -16,13 +16,17 @@ using UnityEngine;
 /// </summary>
 public class BeltSegment
 {
-    public readonly List<BuildingInstance> Belts = new();
+    public readonly List<Building> Belts = new();
     public float SpeedTilesPerSec = 2f;
 
     const float Spacing = 0.5f;
 
+    readonly FactorySim _sim;
+
     // 불변식: pos 내림차순. index 0 = 출구에 가장 가까움(pos 큼).
     readonly List<(ItemDataSO item, float pos)> _items = new();
+
+    public BeltSegment(FactorySim sim) => _sim = sim;
 
     public bool HasItems => _items.Count > 0;
     public IReadOnlyList<(ItemDataSO item, float pos)> Items => _items;
@@ -71,7 +75,7 @@ public class BeltSegment
                 foreach (var conn in exitBelt.OutputConnections)
                 {
                     if (!conn.To.Input.TryAdd(item)) continue;
-                    SimulationSystem.Instance.MarkDirty(conn.To);
+                    _sim.MarkDirty(conn.To);
                     _items.RemoveAt(i);
                     i--;
                     sent = true;
@@ -88,6 +92,6 @@ public class BeltSegment
         // 아이템이 남아 있는 동안은 대표(입구) 벨트만 재등록해 세그먼트를 계속 구동.
         // 세그먼트당 매 틱 1건 — 벨트 수와 무관.
         if (HasItems)
-            SimulationSystem.Instance.MarkDirty(Belts[^1]);
+            _sim.MarkDirty(Belts[^1]);
     }
 }

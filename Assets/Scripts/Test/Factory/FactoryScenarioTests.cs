@@ -37,6 +37,8 @@ public class FactoryScenarioTests : MonoBehaviour
         Run("5. 회전 배치 연결",              S5_RotatedChain);
         Run("6. 어셈블러 조합 체인",           S6_AssemblerChain);
         Run("7. 커브 벨트 코너 체인",          S7_CurvedChain);
+        Run("8. 분배기 라운드로빈",            S8_SplitterRoundRobin);
+        Run("9. 합류기 두 소스 합류",          S9_MergerTwoSources);
 
         foreach (var so in _createdSOs) DestroyImmediate(so);
         _createdSOs.Clear();
@@ -184,6 +186,37 @@ public class FactoryScenarioTests : MonoBehaviour
             $"커브 체인에서도 아이템이 도착해야 함 (실제: {StoredCount(store, _ore)}개)");
     }
 
+    /// <summary>마이너→분배기→저장소 2개: 양쪽에 고르게 분배된다.</summary>
+    void S8_SplitterRoundRobin()
+    {
+        Place(Miner(), 0, 0);
+        Place(Splitter(), 1, 0);
+        var storeA = Place(Storage(), 2, 0);           // 동쪽 출구
+        var storeB = Place(Storage(), 1, 1, rot: 3);   // 북쪽 출구 (남쪽에서 받음)
+
+        RunSim(6f);
+        int a = StoredCount(storeA, _ore);
+        int b = StoredCount(storeB, _ore);
+        Expect(a >= 2 && b >= 2, $"양쪽 출구 모두에 아이템이 가야 함 (A:{a}, B:{b})");
+        Expect(Mathf.Abs(a - b) <= 2, $"라운드로빈이면 양쪽이 비슷해야 함 (A:{a}, B:{b})");
+    }
+
+    /// <summary>마이너 2개(광석/주괴)→합류기→저장소: 두 소스가 모두 통과한다.</summary>
+    void S9_MergerTwoSources()
+    {
+        // 위치별 자원: (1,1)의 마이너만 주괴를 캔다
+        _sim.GetResourceAt = pos => pos == new Vector2Int(1, 1) ? _ingot : _ore;
+
+        Place(Miner(), 0, 0);                          // 서쪽에서 광석
+        Place(Miner(), 1, 1, rot: 1);                  // 북쪽에서 주괴 (출력 South)
+        Place(Merger(), 1, 0);
+        var store = Place(Storage(), 2, 0);
+
+        RunSim(6f);
+        Expect(StoredCount(store, _ore) >= 1 && StoredCount(store, _ingot) >= 1,
+            $"두 소스 모두 합류기를 통과해야 함 (광석:{StoredCount(store, _ore)}, 주괴:{StoredCount(store, _ingot)})");
+    }
+
     // ─── 검증/구동 헬퍼 ─────────────────────────────────────────
 
     void Expect(bool condition, string message)
@@ -239,6 +272,16 @@ public class FactoryScenarioTests : MonoBehaviour
         MakeBuilding<StorageDataSO>("TestStorage",
             new[] { Port(true, Direction.West) }, stackCap: 50);
 
+    BuildingDataSO Splitter() =>
+        MakeBuilding<SplitterDataSO>("TestSplitter",
+            new[] { Port(true, Direction.West), Port(false, Direction.East),
+                    Port(false, Direction.North), Port(false, Direction.South) }, stackCap: 1);
+
+    BuildingDataSO Merger() =>
+        MakeBuilding<MergerDataSO>("TestMerger",
+            new[] { Port(true, Direction.West), Port(true, Direction.North),
+                    Port(true, Direction.South), Port(false, Direction.East) }, stackCap: 1);
+
     BuildingDataSO Assembler(RecipeDataSO recipe)
     {
         var so = MakeBuilding<AssemblerDataSO>("TestAssembler",
@@ -289,7 +332,7 @@ public class FactoryScenarioTests : MonoBehaviour
     void OnGUI()
     {
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine($"Factory 특성화 테스트  ({_results.Count}/7)");
+        sb.AppendLine($"Factory 특성화 테스트  ({_results.Count}/9)");
         foreach (var (name, pass, detail) in _results)
         {
             sb.AppendLine($"{(pass ? "PASS" : "FAIL")}  {name}");

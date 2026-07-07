@@ -171,6 +171,9 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 4c9101522ec57d445bfffcd9c4ed0114, type: 2}
   - {fileID: 11400000, guid: e5bbfc689bf99f84cb0cbfdd9024da42, type: 2}
   - {fileID: 11400000, guid: a90ef4f8699ce3c4a8ae99ff21f5e5fd, type: 2}
+  - {fileID: 11400000, guid: cc4d406cc123d52498c836aec7f284d2, type: 2}
+  - {fileID: 11400000, guid: 095f6990c5d97754cb75452a1f8c4346, type: 2}
+  - {fileID: 11400000, guid: 7b3edeef119789547941e8b566e75ee3, type: 2}
   cellSize: 1
   gridOrigin: {x: 0, y: 0, z: 0}
   raycastStartHeight: 100
@@ -488,6 +491,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4960c5925cd86d14ea92a168a20b10d0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FactoryBootstrap
+  _tps: 10
+  _maxCatchUpTicks: 5
 --- !u!4 &924880106
 Transform:
   m_ObjectHideFlags: 0

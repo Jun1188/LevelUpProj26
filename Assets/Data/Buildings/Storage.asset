@@ -9,22 +9,22 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 48936e0cc3d3477f855f2c57d104e68e, type: 3}
+  m_Script: {fileID: 11500000, guid: 0d20a6012c634eb6a64a385934adbfd3, type: 3}
   m_Name: Storage
-  m_EditorClassIdentifier: Assembly-CSharp::AssemblerDataSO
+  m_EditorClassIdentifier: Assembly-CSharp::StorageDataSO
   id: Buildings::Storage
   displayName: Storage
   description: 
   icon: {fileID: 0}
-  tags: []
-  prefab: {fileID: 5279508996628763662, guid: f21554090b8662041865fae8ac84acf4, type: 3}
+  prefab: {fileID: 5279508996628763662, guid: 935e9bd1c205c7044b36b398d51ffa2e, type: 3}
   size: {x: 1, y: 1}
   ports:
   - LocalOffset: {x: 0, y: 0}
     Direction: 3
     IsInput: 1
+  - LocalOffset: {x: 0, y: 0}
+    Direction: 1
+    IsInput: 0
   inputSlots: 1
-  outputSlots: 27
+  outputSlots: 8
   bufferStackCap: 0
-  availableRecipes:
-  - {fileID: 11400000, guid: ca292011fbddbce4891086f482dc8171, type: 2}

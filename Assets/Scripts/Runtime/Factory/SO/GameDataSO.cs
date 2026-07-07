@@ -19,7 +19,6 @@ public abstract class GameDataSO : ScriptableObject
     [SerializeField] string id;
 
     [Header("표시")]
-    [FormerlySerializedAs("name")]           // 기존 에셋의 'name' 필드 값을 그대로 이전
     public string displayName;
     [TextArea]
     public string description;

@@ -310,7 +310,7 @@ public class FactoryScenarioTests : MonoBehaviour
     ItemDataSO MakeItem(string name, ItemType type)
     {
         var so = ScriptableObject.CreateInstance<ItemDataSO>();
-        so.name = name;
+        so.displayName = name;
         so.type = type;
         _createdSOs.Add(so);
         return so;

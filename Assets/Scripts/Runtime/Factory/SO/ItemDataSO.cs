@@ -1,9 +1,9 @@
 using UnityEngine;
 
+public enum ItemType { Ore, Ingot, Component, Fuel, Misc, Weapon, Helmet, Chestplate, Boots }
+
 [CreateAssetMenu(fileName = "NewItem", menuName = "Factory/Item")]
-public class ItemDataSO : ScriptableObject
+public class ItemDataSO : GameDataSO
 {
-    public new string name;
-    public Sprite icon;
     public ItemType type;
 }

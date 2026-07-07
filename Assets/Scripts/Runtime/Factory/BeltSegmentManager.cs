@@ -1,42 +1,51 @@
 using System.Collections.Generic;
-using UnityEngine;
 
 // ─── 벨트 세그먼트 매니저 ──────────────────────────────────────
 
 /// <summary>
-/// 벨트 연결/해제 이벤트를 받아 BeltSegment를 생성·병합·분리한다.
+/// 벨트 연결/해제 이벤트를 받아 BeltSegment를 생성·병합·분리한다. (plain C#)
 /// BuildingGraph.RegisterConn() → OnNewConnection() 순으로 호출된다.
 /// </summary>
-public class BeltSegmentManager : MonoBehaviour
+public class BeltSegmentManager
 {
-    public static BeltSegmentManager Instance { get; private set; }
+    readonly FactorySim _sim;
 
-    readonly Dictionary<BuildingInstance, BeltSegment> _map = new();
+    readonly Dictionary<Building, BeltSegment> _map = new();
     readonly List<BeltSegment> _segs = new();
 
     public IReadOnlyList<BeltSegment> Segments => _segs;
 
-    void Awake() { if (Instance != null) { Destroy(gameObject); return; } Instance = this; }
+    public BeltSegmentManager(FactorySim sim) => _sim = sim;
 
     /// <summary>이 벨트의 세그먼트를 보장(없으면 1칸 세그먼트 즉시 생성).</summary>
-    public BeltSegment EnsureSegment(BuildingInstance belt)
+    public BeltSegment EnsureSegment(Building belt)
     {
         if (_map.TryGetValue(belt, out var s)) return s;
-        var seg = new BeltSegment();
+        var seg = new BeltSegment(_sim);
+        if (belt.Data is BeltDataSO beltData)
+            seg.SpeedTilesPerSec = beltData.speedTilesPerSec;
         seg.Belts.Add(belt);
         _map[belt] = seg;
         _segs.Add(seg);
         return seg;
     }
 
-    public BeltSegment GetSegment(BuildingInstance b) =>
+    public BeltSegment GetSegment(Building b) =>
         _map.TryGetValue(b, out var s) ? s : null;
 
     /// <summary>벨트-벨트 연결 시 병합. From=상류, To=하류.</summary>
     public void OnNewConnection(BuildingConnection c)
     {
-        if (c.From.Data.category != BuildingCategory.Transport) return;
-        if (c.To.Data.category != BuildingCategory.Transport) return;
+        if (c.From.Data is not BeltDataSO) return;
+        if (c.To.Data is not BeltDataSO) return;
+
+        // 세그먼트는 1자 체인만 표현한다. 합류/분배는 전용 건물(비 Transport)이
+        // 담당하기로 했으므로, 벨트가 여러 벨트와 이어지는 경우는 병합하지 않는다.
+        if (c.From.OutputConnections.Count > 1 || c.To.InputConnections.Count > 1) return;
+
+        // 같은 벨트 종류(동일 SO 에셋)끼리만 병합 — 티어가 다르면(고속 벨트 등)
+        // 경계에서 세그먼트가 끊기고, 아이템은 버퍼 push로 넘어간다.
+        if (c.From.Data != c.To.Data) return;
 
         var sf = EnsureSegment(c.From);   // 상류
         var st = EnsureSegment(c.To);     // 하류
@@ -58,10 +67,13 @@ public class BeltSegmentManager : MonoBehaviour
             sf.AddItemAt(item, pos + fromCount);
 
         _segs.Remove(st);
+
+        // 병합된 세그먼트에 아이템이 있으면 새 대표(입구) 벨트가 구동을 이어받는다
+        if (sf.HasItems) _sim.MarkDirty(sf.Belts[^1]);
     }
 
     /// <summary>벨트 철거 시 세그먼트를 상류·하류로 정밀 분할. 제거 벨트 위 아이템은 폐기.</summary>
-    public void OnBuildingRemoved(BuildingInstance b)
+    public void OnBuildingRemoved(Building b)
     {
         if (!_map.TryGetValue(b, out var seg)) return;
 
@@ -75,23 +87,23 @@ public class BeltSegmentManager : MonoBehaviour
         // 하류 조각: Belts[0..k-1], pos 구간 [n-k, n] → pos -= (n-k)
         if (k > 0)
         {
-            var d = new BeltSegment { SpeedTilesPerSec = seg.SpeedTilesPerSec };
+            var d = new BeltSegment(_sim) { SpeedTilesPerSec = seg.SpeedTilesPerSec };
             for (int i = 0; i < k; i++) { d.Belts.Add(seg.Belts[i]); _map[seg.Belts[i]] = d; }
             foreach (var (item, pos) in seg.Items)
                 if (pos >= n - k) d.AddItemAt(item, pos - (n - k));
             _segs.Add(d);
-            if (d.HasItems) foreach (var belt in d.Belts) SimulationSystem.Instance.MarkDirty(belt);
+            if (d.HasItems) _sim.MarkDirty(d.Belts[^1]); // 대표만 깨움
         }
 
         // 상류 조각: Belts[k+1..n-1], pos 구간 [0, n-1-k] → pos 유지
         if (k < n - 1)
         {
-            var u = new BeltSegment { SpeedTilesPerSec = seg.SpeedTilesPerSec };
+            var u = new BeltSegment(_sim) { SpeedTilesPerSec = seg.SpeedTilesPerSec };
             for (int i = k + 1; i < n; i++) { u.Belts.Add(seg.Belts[i]); _map[seg.Belts[i]] = u; }
             foreach (var (item, pos) in seg.Items)
                 if (pos < n - 1 - k) u.AddItemAt(item, pos);
             _segs.Add(u);
-            if (u.HasItems) foreach (var belt in u.Belts) SimulationSystem.Instance.MarkDirty(belt);
+            if (u.HasItems) _sim.MarkDirty(u.Belts[^1]); // 대표만 깨움
         }
 
         // (n-1-k ≤ pos < n-k) 구간 = 제거 벨트 위 아이템 → 복사 안 함 = 폐기

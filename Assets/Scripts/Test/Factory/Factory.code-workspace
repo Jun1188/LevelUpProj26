@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": "../../Runtime/Factory"
+		},
+		{
+			"path": "../../Runtime/GridSystem"
+		},
+		{
+			"path": ".."
+		}
+	]
+}

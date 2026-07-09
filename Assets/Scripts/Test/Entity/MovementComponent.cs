@@ -14,6 +14,7 @@ public class MovementComponent : MonoBehaviour
     public bool IsMoving => currentPath != null && currentPath.Count > 0;
 
     public event Action OnDestinationReached;
+    public event Action OnPathBlocked;
 
     public void StartMoving(List<Node> path)
     {
@@ -45,9 +46,17 @@ public class MovementComponent : MonoBehaviour
 
         while (true)
         {
+            // 이동 도중 다음 웨이포인트에 건물이 설치되면 즉시 멈추고 재탐색 요청
+            if (GridManager.Instance != null && !GridManager.Instance.IsWalkable(currentPath[targetIndex]))
+            {
+                StopMoving();
+                OnPathBlocked?.Invoke();
+                yield break;
+            }
+
             Vector3 flatPosition = new Vector3(transform.position.x, 0, transform.position.z);
             Vector3 flatWaypoint = new Vector3(currentWaypoint.x, 0, currentWaypoint.z);
-            
+
             if (Vector3.Distance(flatPosition, flatWaypoint) < 0.1f)
             {
                 targetIndex++;

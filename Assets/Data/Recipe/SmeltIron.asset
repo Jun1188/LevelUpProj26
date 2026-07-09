@@ -12,7 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b3a1f886187afd348a50049a653e8110, type: 3}
   m_Name: SmeltIron
   m_EditorClassIdentifier: Assembly-CSharp::RecipeDataSO
-  name: SmeltIron
+  id: Recipe::SmeltIron
+  displayName: SmeltIron
+  description: 
+  icon: {fileID: 0}
   inputs:
   - item: {fileID: 11400000, guid: 607e314f4e7ebd443adabb092a59beee, type: 2}
     amount: 1

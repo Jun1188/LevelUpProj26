@@ -95,8 +95,9 @@ public class ChaseState : IEntityState
         }
 
         // 길이 완전히 막힘 → 경로를 막는 건물을 새 타겟으로 삼아 부순다
-        BuildingInstance blocker = PathFinder.FindBlockingBuilding(stateMachine.transform.position, target.GetPosition());
-        BuildingDamageable damageable = blocker != null ? blocker.GetComponent<BuildingDamageable>() : null;
+        // Building은 POCO이므로 그 뷰 GameObject에 피격 컴포넌트를 지연 부착해 타겟으로 쓴다
+        Building blocker = PathFinder.FindBlockingBuilding(stateMachine.transform.position, target.GetPosition());
+        BuildingDamageable damageable = BuildingDamageable.GetOrAttach(blocker);
 
         if (damageable != null && !ReferenceEquals(damageable, target))
         {

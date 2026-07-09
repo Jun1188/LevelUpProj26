@@ -1,0 +1,162 @@
+using System;
+using System.Linq;
+using UnityEngine;
+
+// ================================================================
+//  BuildingData.cs
+//  ScriptableObject 정의 + 포트 시스템 지원 타입
+//
+//  이 파일만 있으면 Inspector에서 건물/아이템/레시피를 전부 정의할 수 있다.
+//  건물 배치, 적, 게임 로직은 이 파일과 무관하다.
+// ================================================================
+
+// ─── 기본 열거형 ────────────────────────────────────────────────
+
+public enum Direction { North, East, South, West }
+
+// ─── 방향 헬퍼 ─────────────────────────────────────────────────
+
+public static class Dir
+{
+    static readonly Vector2Int[] _v = { new(0,1), new(1,0), new(0,-1), new(-1,0) };
+
+    public static Vector2Int ToVec(Direction d) => _v[(int)d];
+    public static Direction   Opposite(Direction d) => (Direction)(((int)d + 2) % 4);
+
+    // 시계 방향으로 steps만큼 회전 (건물 회전 지원용)
+    public static Direction RotateCW(Direction d, int steps = 1) =>
+        (Direction)(((int)d + steps % 4 + 4) % 4);
+
+    /// <summary>
+    /// 풋프린트 내 셀 좌표의 시계 방향 90° 회전.
+    /// 원점 기준 수학 회전 (x,y)→(y,−x)가 아니라, 회전 후에도 origin이
+    /// 왼쪽 아래를 유지하도록 재앵커링한다: (x,y) → (y, w−1−x).
+    /// w = 회전 전 풋프린트의 가로 크기.
+    /// </summary>
+    public static Vector2Int RotateCellCW(Vector2Int v, int footprintWidth)
+        => new(v.y, footprintWidth - 1 - v.x);
+}
+
+// ─── 포트 정의 ──────────────────────────────────────────────────
+
+/// <summary>
+/// 건물의 입출력 연결점.
+/// BuildingDataSO.ports[] 배열에 Inspector로 설정.
+///
+/// 예 — Miner (1×1, 오른쪽 출력):
+///   ports[0]: IsInput=false, LocalOffset=(0,0), Direction=East
+///
+/// 예 — Belt (1×1, 왼쪽 입력→오른쪽 출력):
+///   ports[0]: IsInput=true,  LocalOffset=(0,0), Direction=West
+///   ports[1]: IsInput=false, LocalOffset=(0,0), Direction=East
+///
+/// 예 — Assembler 2×1 (왼쪽 두 입력, 오른쪽 출력):
+///   ports[0]: IsInput=true,  LocalOffset=(0,0), Direction=West
+///   ports[1]: IsInput=true,  LocalOffset=(0,1), Direction=West
+///   ports[2]: IsInput=false, LocalOffset=(1,0), Direction=East
+/// </summary>
+[Serializable]
+public class PortDefinition
+{
+    public Vector2Int LocalOffset;    // 건물 Origin 기준 상대 그리드 좌표
+    public Direction  Direction;      // 포트가 향하는 방향 (아이템 흐름 방향)
+    public bool       IsInput;        // true = 수신 포트,  false = 배출 포트
+
+    // 아이템 필터링은 포트가 아니라 수신자의 ItemContainer.AcceptFilter가 담당한다
+    // (예: 어셈블러 입력 = 현재 레시피의 재료만). 포트 필터를 두면 레시피와
+    // 이중 장부가 되어 어긋날 수 있어 제거했다.
+}
+
+// ─── 행동 인터페이스 ────────────────────────────────────────────
+
+public interface IBuildingBehavior
+{
+    /// <summary>
+    /// FactorySim이 이 건물이 깨어 있는 틱에 호출.
+    /// (MarkDirty로 등록됐거나 ScheduleWake 예약 시각이 됐을 때)
+    /// </summary>
+    void Tick(float dt);
+
+    /// <summary>
+    /// BuildingGraph.OnPlaced() 완료 후 1회 호출.
+    /// 이 시점에서는 InputConnections / OutputConnections가 모두 확정되어 있다.
+    /// 자원 조회, 레시피 결정 등 연결 기반 초기화에 사용.
+    /// </summary>
+    void OnAfterPlaced();
+}
+
+// ─── ScriptableObjects ──────────────────────────────────────────
+
+/// <summary>
+/// 건물 종류를 정의하는 ScriptableObject의 공통 베이스.
+/// 씬에 배치된 건물 100개가 같은 SO 1개를 공유한다 (메모리 효율).
+///
+/// 건물 종류별 데이터·행동은 서브클래스가 정의한다:
+///   MinerDataSO / BeltDataSO / AssemblerDataSO / StorageDataSO
+/// 새 건물 종류 추가 = 서브클래스 SO + 행동 클래스 1쌍 (기존 코드 무수정).
+/// </summary>
+public abstract class BuildingDataSO : GameDataSO
+{
+    // 식별·표시(id/displayName/description/icon)는 GameDataSO가 담당
+
+    [Header("프리팹")]
+    public GameObject prefab;
+
+    [Header("그리드 크기")]
+    public Vector2Int size = Vector2Int.one; // 타일 단위 (1×1, 2×1 등)
+
+    [Header("포트 — 건물 간 연결의 핵심")]
+    public PortDefinition[] ports;
+
+    [Header("버퍼 — 슬롯 기반 (플레이어 인벤토리와 같은 모델)")]
+    [Tooltip("입력 버퍼 슬롯 수. 벨트/기계 1, 어셈블러 2(재료 종류만큼) 권장.")]
+    public int inputSlots  = 1;
+    [Tooltip("출력 버퍼 슬롯 수.")]
+    public int outputSlots = 1;
+    [Tooltip("버퍼 스택 상한. 0 = 아이템 기본값(64). 기계는 5~10 권장 — 과잉 보관 방지.")]
+    public int bufferStackCap = 0;
+
+    /// <summary>이 건물의 런타임 행동 생성. Building 생성자에서 호출.</summary>
+    public abstract IBuildingBehavior CreateBehavior(Building building);
+
+    // ── 회전 지원 (배치 시 사용, 상호작용 로직과 무관)
+    //    4방향 포트 배열을 최초 요청 시 1회 계산해 캐싱한다.
+    //    (매 조회마다 새 배열을 할당하던 방식 + 재앵커링 누락 버그 대체)
+
+    [NonSerialized] PortDefinition[][] _portsByRotation;
+
+    public Vector2Int GetRotatedSize(int cwSteps) =>
+        cwSteps % 2 == 0 ? size : new Vector2Int(size.y, size.x);
+
+    public PortDefinition[] GetRotatedPorts(int cwSteps)
+    {
+        int steps = (cwSteps % 4 + 4) % 4;
+        if (ports == null || steps == 0) return ports;
+        _portsByRotation ??= BuildPortRotations();
+        return _portsByRotation[steps];
+    }
+
+    PortDefinition[][] BuildPortRotations()
+    {
+        var table = new PortDefinition[4][];
+        table[0] = ports;
+        for (int s = 1; s < 4; s++)
+        {
+            int prevWidth = GetRotatedSize(s - 1).x; // 이번 스텝 회전 전의 가로 크기
+            table[s] = table[s - 1].Select(p => new PortDefinition
+            {
+                IsInput     = p.IsInput,
+                Direction   = Dir.RotateCW(p.Direction),
+                LocalOffset = Dir.RotateCellCW(p.LocalOffset, prevWidth),
+            }).ToArray();
+        }
+        return table;
+    }
+
+    protected override void OnValidate()
+    {
+        base.OnValidate();        // id 자동 부여 (GameDataSO)
+        _portsByRotation = null;  // 인스펙터에서 포트 수정 시 캐시 무효화
+    }
+}
+

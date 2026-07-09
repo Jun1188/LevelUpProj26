@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d20a6012c634eb6a64a385934adbfd3, type: 3}
+  m_Name: Storage
+  m_EditorClassIdentifier: Assembly-CSharp::StorageDataSO
+  id: Buildings::Storage
+  displayName: Storage
+  description: 
+  icon: {fileID: 0}
+  prefab: {fileID: 5279508996628763662, guid: 935e9bd1c205c7044b36b398d51ffa2e, type: 3}
+  size: {x: 1, y: 1}
+  ports:
+  - LocalOffset: {x: 0, y: 0}
+    Direction: 3
+    IsInput: 1
+  - LocalOffset: {x: 0, y: 0}
+    Direction: 1
+    IsInput: 0
+  inputSlots: 1
+  outputSlots: 8
+  bufferStackCap: 0

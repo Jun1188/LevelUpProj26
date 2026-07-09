@@ -84,18 +84,20 @@ public static class PathFinder
     }
 
     // 길이 완전히 막혔을 때, 건물을 무시한 이상적 경로를 구해
-    // 그 경로상에서 처음 만나는 건물(부숴야 할 대상)을 반환
-    public static BuildingInstance FindBlockingBuilding(Vector3 startPos, Vector3 targetPos)
+    // 그 경로상에서 처음 만나는 건물(부숴야 할 대상)을 반환.
+    // 점유 조회는 심의 GridIndex(FactoryBootstrap.Sim.Grid)를 사용한다.
+    public static Building FindBlockingBuilding(Vector3 startPos, Vector3 targetPos)
     {
-        if (GridRegistry.Instance == null) return null;
+        var boot = FactoryBootstrap.Instance;
+        if (boot == null || boot.Sim == null) return null;
 
         List<Node> idealPath = FindPath(startPos, targetPos, ignoreBuildings: true);
         if (idealPath == null) return null; // 지형 자체가 막힘 → 부숴도 소용없음
 
         foreach (Node node in idealPath)
         {
-            BuildingInstance blocker = GridRegistry.Instance.GetAt(node.gridCoord);
-            if (blocker != null) return blocker;
+            Building blocker = boot.Sim.Grid.GetAt(node.gridCoord);
+            if (blocker != null && !blocker.IsRemoved) return blocker;
         }
         return null;
     }

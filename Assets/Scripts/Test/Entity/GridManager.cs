@@ -7,7 +7,7 @@ public class GridManager : MonoBehaviour
 {
     public static GridManager Instance { get; private set; }
     [Header("Grid Settings")]
-    [Tooltip("정적 장애물이 위치한 레이어 이름. Awake에서 마스크로 변환된다. 런타임 설치 건물은 GridRegistry로 별도 처리.")]
+    [Tooltip("정적 장애물이 위치한 레이어 이름. Awake에서 마스크로 변환된다. 런타임 설치 건물은 심의 GridIndex로 별도 처리.")]
     [SerializeField] private string obstacleLayerName = "Obstacle";
     private LayerMask unwalkableMask;
     public float cellSize = 1f;       // GridSystem의 CellSize와 동일한 역할
@@ -74,7 +74,7 @@ public class GridManager : MonoBehaviour
     }
     void Start()
     {
-        // PlacementSystem과 그리드 설정이 다르면 Node.gridCoord와 GridRegistry의 셀 좌표가 어긋난다
+        // PlacementSystem과 그리드 설정이 다르면 Node.gridCoord와 심 GridIndex의 셀 좌표가 어긋난다
         var placement = FindObjectOfType<PlacementSystem>();
         if (placement != null &&
             (!Mathf.Approximately(placement.CellSize, cellSize) || placement.GridOrigin != originPosition))
@@ -86,12 +86,16 @@ public class GridManager : MonoBehaviour
         }
     }
 
-    // 정적 장애물(Awake에서 구운 값) + 런타임 설치 건물(GridRegistry)을 함께 판정
+    // 정적 장애물(Awake에서 구운 값) + 런타임 설치 건물(심의 GridIndex)을 함께 판정
     public bool IsWalkable(Node node, bool ignoreBuildings = false)
     {
         if (node == null || !node.walkable) return false;
-        if (!ignoreBuildings && GridRegistry.Instance != null &&
-            GridRegistry.Instance.IsOccupied(node.gridCoord)) return false;
+        if (!ignoreBuildings)
+        {
+            var boot = FactoryBootstrap.Instance;
+            if (boot != null && boot.Sim != null &&
+                boot.Sim.Grid.IsOccupied(node.gridCoord)) return false;
+        }
         return true;
     }
 

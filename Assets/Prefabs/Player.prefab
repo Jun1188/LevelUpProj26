@@ -9,6 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 7995179578143903283}
+  - component: {fileID: 972154872856820794}
   m_Layer: 6
   m_Name: Weapon_Holder
   m_TagString: Untagged
@@ -24,15 +25,37 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 396995298283521722}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 1, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 5017712778038258110}
   - {fileID: 5355281485241008794}
-  m_Father: {fileID: 6780044117118029167}
+  m_Father: {fileID: 2425879589627415900}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &972154872856820794
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 396995298283521722}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0366462c019d4774c9dc99216647475d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::HandSway
+  posSwayAmount: 0.06
+  posSwaySmooth: 8
+  rotSwayAmount: 4
+  rotSwaySmooth: 8
+  bobEnabled: 1
+  bobFrequency: 1.8
+  bobAmountX: 0.008
+  bobAmountY: 0.006
+  bobResetSmooth: 10
+  inputSmoothing: 0.15
 --- !u!1 &3917618134708522169
 GameObject:
   m_ObjectHideFlags: 0
@@ -63,6 +86,39 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 7995179578143903283}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &6022944334451317680
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2425879589627415900}
+  m_Layer: 6
+  m_Name: CameraHolder
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2425879589627415900
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6022944334451317680}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 1, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 6780044117118029167}
+  - {fileID: 7995179578143903283}
+  m_Father: {fileID: 5008654619937830270}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &6369730769915939971
 GameObject:
@@ -204,7 +260,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 6780044117118029167}
+  - {fileID: 2425879589627415900}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!54 &7805456220911163010
@@ -270,22 +326,22 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
   moveSpeed: 5
-  maxHealth: 100
-  gun: {fileID: 2802793863481005645}
-  maxRecoilVelocity: 12
-  recoilDecaySpeed: 20
-  maxRecoilDistance: 1.2
-  recoilDistanceRecoverySpeed: 6
-  jumpForce: 10
   rb: {fileID: 7805456220911163010}
-  playerCamera: {fileID: 6780044117118029167}
-  mouseSensitivity: 100
+  playerCamera: {fileID: 2425879589627415900}
+  mouseSensitivity: 1
   MAX_CAMERA_ROTATION_X: 90
+  jumpForce: 10
+  gun: {fileID: 2802793863481005645}
+  maxRecoilVelocity: 0
+  recoilDecaySpeed: 0
+  playerInventory: {fileID: 1341143159957256118}
   inventoryUIPanel: {fileID: 0}
   inventoryUI: {fileID: 0}
-  playerInventory: {fileID: 1341143159957256118}
+  chestInventoryUI: {fileID: 0}
+  crosshairUI: {fileID: 0}
+  promptText: {fileID: 0}
   debugTestItem: {fileID: 11400000, guid: e92829eb1699dab47a38ddd2df1e22ad, type: 2}
-  weaponModels: []
+  hotbarSlotCount: 9
 --- !u!114 &1341143159957256118
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -298,7 +354,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7b4b2931dea724a48acbd057dc96eef8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Inventory
-  slotCount: 36
+  slotCount: 45
   slots: []
 --- !u!114 &1256689177612881881
 MonoBehaviour:
@@ -342,6 +398,7 @@ GameObject:
   - component: {fileID: 2516082347585424752}
   - component: {fileID: 2013586750592316191}
   - component: {fileID: 4917694170790257521}
+  - component: {fileID: 5182528809551325604}
   m_Layer: 6
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -357,13 +414,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 8683513508193775307}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 1, z: 0}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 7995179578143903283}
-  m_Father: {fileID: 5008654619937830270}
+  m_Children: []
+  m_Father: {fileID: 2425879589627415900}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!20 &2516082347585424752
 Camera:
@@ -468,3 +524,19 @@ MonoBehaviour:
     m_VarianceClampScale: 0.9
     m_ContrastAdaptiveSharpening: 0
   m_Version: 2
+--- !u!114 &5182528809551325604
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8683513508193775307}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7c904246da9bc874d8a25434a09f84f6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CameraShakeManager
+  cameraTransform: {fileID: 6780044117118029167}
+  maxPositionOffset: 0.06
+  maxRotationOffset: 1.2
+  globalIntensityScale: 1

@@ -2594,10 +2594,6 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
-    - target: {fileID: 1341143159957256118, guid: 9c0e1513e619b28418f8a1a22933d74a, type: 3}
-      propertyPath: slotCount
-      value: 45
-      objectReference: {fileID: 0}
     - target: {fileID: 5008654619937830270, guid: 9c0e1513e619b28418f8a1a22933d74a, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
@@ -2651,10 +2647,6 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 1107685342}
     - target: {fileID: 6442160254612740854, guid: 9c0e1513e619b28418f8a1a22933d74a, type: 3}
-      propertyPath: hotbarSlotCount
-      value: 9
-      objectReference: {fileID: 0}
-    - target: {fileID: 6442160254612740854, guid: 9c0e1513e619b28418f8a1a22933d74a, type: 3}
       propertyPath: chestInventoryUI
       value: 
       objectReference: {fileID: 3205582055210141737}
@@ -2663,12 +2655,12 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 1107685340}
     - target: {fileID: 6442160254612740854, guid: 9c0e1513e619b28418f8a1a22933d74a, type: 3}
-      propertyPath: mouseSensitivity
-      value: 1
+      propertyPath: recoilDecaySpeed
+      value: 20
       objectReference: {fileID: 0}
     - target: {fileID: 6442160254612740854, guid: 9c0e1513e619b28418f8a1a22933d74a, type: 3}
-      propertyPath: interactableLayer.m_Bits
-      value: 512
+      propertyPath: maxRecoilVelocity
+      value: 12
       objectReference: {fileID: 0}
     - target: {fileID: 7498640336194902235, guid: 9c0e1513e619b28418f8a1a22933d74a, type: 3}
       propertyPath: m_Name

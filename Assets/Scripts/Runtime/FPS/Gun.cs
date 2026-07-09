@@ -108,6 +108,9 @@ public class Gun : MonoBehaviour
         Vector3 spawnPos = muzzlePoint != null ? muzzlePoint.position : transform.position;
         Quaternion spawnRot = muzzlePoint != null ? muzzlePoint.rotation : transform.rotation;
 
+
+        CameraShakeManager.Instance.ShakeOnPlayerShoot(3);
+
         // 풀에서 총알 꺼내기
         GameObject bullet = bulletPool.Get();
         bullet.transform.position = spawnPos;

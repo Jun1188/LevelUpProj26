@@ -13,7 +13,10 @@ public static class PlacementBridge // MonoBehaviour 상속 제거
 
         var instance = go.GetComponent<BuildingInstance>();
         if (instance == null) instance = go.AddComponent<BuildingInstance>();
-        
+
+        // 몬스터가 공격할 수 있도록 피격 컴포넌트 부착
+        if (go.GetComponent<BuildingDamageable>() == null) go.AddComponent<BuildingDamageable>();
+
         instance.Initialize(so, origin, rotSteps);
 
         var rotSize = so.GetRotatedSize(rotSteps);

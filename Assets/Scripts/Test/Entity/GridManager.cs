@@ -7,10 +7,17 @@ public class GridManager : MonoBehaviour
 {
     public static GridManager Instance { get; private set; }
     [Header("Grid Settings")]
-    public LayerMask unwalkableMask;
+    [Tooltip("정적 장애물이 위치한 레이어 이름. Awake에서 마스크로 변환된다. 런타임 설치 건물은 GridRegistry로 별도 처리.")]
+    [SerializeField] private string obstacleLayerName = "Obstacle";
+    private LayerMask unwalkableMask;
     public float cellSize = 1f;       // GridSystem의 CellSize와 동일한 역할
-    public Vector2Int gridSize;       // 가로, 세로 셀 개수
-    public Vector3 originPosition;    // 그리드의 시작점 (왼쪽 아래)
+
+    [Header("Map Bounds")]
+    [Tooltip("맵(바닥) 콜라이더. 지정하면 이 바운즈로 originPosition과 gridSize를 자동 계산해 " +
+             "그리드가 맵 밖으로 나가지 않도록 한다. 비워두면 아래 수동 값을 사용.")]
+    [SerializeField] private Collider mapBounds;
+    public Vector2Int gridSize;       // 가로, 세로 셀 개수 (mapBounds 지정 시 자동 계산됨)
+    public Vector3 originPosition;    // 그리드의 시작점 (왼쪽 아래) (mapBounds 지정 시 자동 계산됨)
     private Node[,] grid;
 
     // GridSystem 로직을 래핑할 변수
@@ -19,6 +26,30 @@ public class GridManager : MonoBehaviour
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
+        // 레이어 마스크를 이름으로 해석 — 인스펙터에서 엉뚱한 레이어(예: Bullet)로 설정되는 실수 방지
+        unwalkableMask = LayerMask.GetMask(obstacleLayerName);
+        if (unwalkableMask == 0)
+            Debug.LogWarning($"[GridManager] '{obstacleLayerName}' 레이어를 찾지 못했습니다. " +
+                $"정적 장애물이 전부 walkable로 처리됩니다. Project Settings > Tags and Layers에서 레이어를 확인하세요.");
+
+        // 맵 바운즈가 지정되면 그리드 크기/원점을 맵에 맞춘다 → 경로가 맵 밖으로 나가는 것을 방지.
+        // FloorToInt: 맵에 완전히 포함되는 셀만 그리드에 넣는다 (걸치는 가장자리 셀 제외)
+        if (mapBounds != null)
+        {
+            Bounds b = mapBounds.bounds;
+            originPosition = new Vector3(b.min.x, originPosition.y, b.min.z);
+            gridSize = new Vector2Int(
+                Mathf.Max(1, Mathf.FloorToInt(b.size.x / cellSize)),
+                Mathf.Max(1, Mathf.FloorToInt(b.size.z / cellSize)));
+            Debug.Log($"[GridManager] 맵 바운즈({mapBounds.name})로 그리드 자동 설정: " +
+                $"origin={originPosition}, gridSize={gridSize}, cellSize={cellSize}");
+        }
+        else
+        {
+            Debug.LogWarning("[GridManager] mapBounds가 비어 있어 수동 gridSize/originPosition을 사용합니다. " +
+                "그리드가 맵보다 크면 경로가 맵 밖으로 설정될 수 있습니다.");
+        }
+
         // GridSystem 초기화
         gridSystem = new GridSystem(cellSize, originPosition);
         CreateGrid();
@@ -41,6 +72,41 @@ public class GridManager : MonoBehaviour
             }
         }
     }
+    void Start()
+    {
+        // PlacementSystem과 그리드 설정이 다르면 Node.gridCoord와 GridRegistry의 셀 좌표가 어긋난다
+        var placement = FindObjectOfType<PlacementSystem>();
+        if (placement != null &&
+            (!Mathf.Approximately(placement.CellSize, cellSize) || placement.GridOrigin != originPosition))
+        {
+            Debug.LogWarning($"[GridManager] PlacementSystem과 그리드 설정 불일치! " +
+                $"GridManager(cellSize={cellSize}, origin={originPosition}) vs " +
+                $"PlacementSystem(cellSize={placement.CellSize}, origin={placement.GridOrigin}). " +
+                $"건물 회피 길찾기가 잘못된 셀을 참조합니다.");
+        }
+    }
+
+    // 정적 장애물(Awake에서 구운 값) + 런타임 설치 건물(GridRegistry)을 함께 판정
+    public bool IsWalkable(Node node, bool ignoreBuildings = false)
+    {
+        if (node == null || !node.walkable) return false;
+        if (!ignoreBuildings && GridRegistry.Instance != null &&
+            GridRegistry.Instance.IsOccupied(node.gridCoord)) return false;
+        return true;
+    }
+
+    public bool IsWalkable(Vector2Int cell, bool ignoreBuildings = false)
+    {
+        if (cell.x < 0 || cell.x >= gridSize.x || cell.y < 0 || cell.y >= gridSize.y) return false;
+        return IsWalkable(grid[cell.x, cell.y], ignoreBuildings);
+    }
+
+    public Node GetNode(Vector2Int cell)
+    {
+        if (cell.x < 0 || cell.x >= gridSize.x || cell.y < 0 || cell.y >= gridSize.y) return null;
+        return grid[cell.x, cell.y];
+    }
+
     // GridSystem을 사용하여 월드 좌표를 노드로 변환
     public Node NodeFromWorldPoint(Vector3 worldPosition)
     {

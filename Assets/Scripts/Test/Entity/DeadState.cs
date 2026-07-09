@@ -4,11 +4,7 @@ public class DeadState : IEntityState
 {
     public void Enter(StateMachineComponent stateMachine)
     {
-        var movement = stateMachine.GetComponent<MovementComponent>();
-        if (movement != null)
-        {
-            movement.StopMoving();
-        }
+        stateMachine.Movement?.StopMoving();
     }
 
     public void Update(StateMachineComponent stateMachine) 

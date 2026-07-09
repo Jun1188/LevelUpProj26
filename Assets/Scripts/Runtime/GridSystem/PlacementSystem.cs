@@ -27,6 +27,10 @@ public class PlacementSystem : MonoBehaviour
     [SerializeField] private float cellSize = 1f;
     [SerializeField] private Vector3 gridOrigin = Vector3.zero;
 
+    // GridManager가 그리드 설정 정합성을 검사할 때 사용
+    public float CellSize => cellSize;
+    public Vector3 GridOrigin => gridOrigin;
+
     [Header("Terrain Height")]
     [SerializeField] private float raycastStartHeight = 100f;
     [SerializeField] private float maxSlopeHeightDiff = 0.5f;

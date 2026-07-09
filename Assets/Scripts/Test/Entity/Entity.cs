@@ -8,6 +8,30 @@ public interface IInteractable
 {
     void TakeDamage(float damageAmount);
     Vector3 GetPosition();
+    bool IsDead { get; }
+}
+
+public static class InteractableExtensions
+{
+    // 순수 null 체크만으로는 Destroy된 MonoBehaviour(가짜 null)를 걸러내지 못하므로
+    // UnityEngine.Object 캐스팅 비교까지 포함한 유효성 검사
+    public static bool IsValidTarget(this IInteractable target)
+    {
+        if (target == null) return false;
+        if (target is UnityEngine.Object obj && obj == null) return false;
+        return !target.IsDead;
+    }
+
+    // 멀티타일 건물처럼 부피가 있는 대상은 중심점 대신 콜라이더 표면까지의 거리를 사용
+    public static float DistanceTo(this IInteractable target, Vector3 from)
+    {
+        if (target is Component c)
+        {
+            var col = c.GetComponentInChildren<Collider>();
+            if (col != null) return Vector3.Distance(from, col.ClosestPoint(from));
+        }
+        return Vector3.Distance(from, target.GetPosition());
+    }
 }
 
 public class Entity : MonoBehaviour, IInteractable 
@@ -42,6 +66,11 @@ public class Entity : MonoBehaviour, IInteractable
     {
         healthComponent = GetComponent<HealthComponent>();
         stateMachine = GetComponent<StateMachineComponent>();
+
+        if (healthComponent != null && stateMachine != null)
+        {
+            healthComponent.OnDeath += () => stateMachine.SetState(new DeadState());
+        }
     }
 
     protected virtual void Start()

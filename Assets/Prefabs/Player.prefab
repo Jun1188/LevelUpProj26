@@ -332,8 +332,8 @@ MonoBehaviour:
   MAX_CAMERA_ROTATION_X: 90
   jumpForce: 10
   gun: {fileID: 2802793863481005645}
-  maxRecoilVelocity: 0
-  recoilDecaySpeed: 0
+  maxRecoilVelocity: 12
+  recoilDecaySpeed: 20
   playerInventory: {fileID: 1341143159957256118}
   inventoryUIPanel: {fileID: 0}
   inventoryUI: {fileID: 0}

@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections;
+using System;
 
 public class PlayerInteractionManager : MonoBehaviour
 {
@@ -7,6 +8,8 @@ public class PlayerInteractionManager : MonoBehaviour
     [SerializeField] private Transform playerCamera;
 
     [SerializeField] TMPro.TextMeshProUGUI promptText;
+
+    [SerializeField] LayerMask interactableLayers;
 
     private void Update()
     {
@@ -18,7 +21,7 @@ public class PlayerInteractionManager : MonoBehaviour
         Ray ray = new Ray(playerCamera.position, playerCamera.forward);
         RaycastHit hit;
 
-        if (Physics.Raycast(ray, out hit, 4f, LayerMask.GetMask("Interactable")))
+        if (Physics.Raycast(ray, out hit, 4f, interactableLayers))
         {
             Interactable interactable = hit.collider.GetComponentInParent<Interactable>();
 

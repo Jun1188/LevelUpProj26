@@ -256,6 +256,7 @@ public class PlayerController : Entity
         if (inventoryUI != null) inventoryUI.RefreshAllUI();
         
         ToggleCursorAndHUD(false);
+        //GameManager.Instance.interacting = false;
     }
 
     public void OpenTargetInventory(Inventory targetInventory)

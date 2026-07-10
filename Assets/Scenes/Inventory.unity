@@ -682,7 +682,7 @@ GameObject:
   - component: {fileID: 742339824}
   - component: {fileID: 742339823}
   m_Layer: 5
-  m_Name: test_interaction
+  m_Name: Interaction_Txt
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2586,6 +2586,7 @@ MonoBehaviour:
   nightDuration: 5
   currentDayCount: 1
   currentPhase: 0
+  interacting: 0
 --- !u!1001 &2074658855
 PrefabInstance:
   m_ObjectHideFlags: 0

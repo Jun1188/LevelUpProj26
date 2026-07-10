@@ -16,6 +16,8 @@ public class GameManager : MonoBehaviour
     public DayPhase currentPhase = DayPhase.Day; // 현재 상태 (낮/밤)
     private float phaseTimer = 0f;     // 현재 페이즈 진행 타이머
 
+    public bool interacting = false;
+
     private void Awake()
     {
         // === 1. DontDestroyOnLoad 기반의 안전한 싱글톤 구현 ===

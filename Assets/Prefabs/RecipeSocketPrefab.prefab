@@ -251,6 +251,7 @@ GameObject:
   - component: {fileID: 4329367751793401749}
   - component: {fileID: 1167604048186179716}
   - component: {fileID: 175581066689032379}
+  - component: {fileID: 5136259716723901874}
   m_Layer: 5
   m_Name: RecipeSocketPrefab
   m_TagString: Untagged
@@ -388,6 +389,21 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &5136259716723901874
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8521307911147658762}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30322ab03cc363840a9398605b78419d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: '::'
+  inputSocket: {fileID: 2218935158201874616}
+  outputSocket: {fileID: 6171340217356871550}
+  slotPrefab: {fileID: 481127224560566462, guid: 9856b207c0cfb094fb37b743ff1e9f73, type: 3}
 --- !u!1001 &135146962171222536
 PrefabInstance:
   m_ObjectHideFlags: 0

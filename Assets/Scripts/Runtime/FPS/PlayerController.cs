@@ -36,7 +36,7 @@ public class PlayerController : Entity
     public InventoryUI inventoryUI;     
     public InventoryUI chestInventoryUI;
     public GameObject crosshairUI;      
-    public TMPro.TextMeshProUGUI promptText; 
+
 
     [Header("Debug / Cheat Tools")]
     public ItemDataSO debugTestItem; 
@@ -72,12 +72,10 @@ public class PlayerController : Entity
         if (!isInventoryOpen)
         {
             HandleCameraRotation();
-            HandleInteractionRaycast();
             HandleHotbarInput();
         }
         else
         {
-            if (promptText != null) promptText.gameObject.SetActive(false);
         }
     }
 
@@ -233,32 +231,7 @@ public class PlayerController : Entity
 
     #endregion
 
-    #region [5. Core Mechanics - Interaction & Raycast]
 
-    private void HandleInteractionRaycast()
-    {
-        Ray ray = new Ray(playerCamera.position, playerCamera.forward);
-        RaycastHit hit;
-
-        if (Physics.Raycast(ray, out hit, 4f, LayerMask.GetMask("Interactable")))
-        {
-            Interactable interactable = hit.collider.GetComponentInParent<Interactable>();
-            
-            if (interactable != null)
-            {
-                if (promptText != null)
-                {
-                    promptText.gameObject.SetActive(true);
-                    promptText.text = $"[E] {interactable.promptMessage}";
-                }
-                return; 
-            }
-        }
-
-        if (promptText != null) promptText.gameObject.SetActive(false);
-    }
-
-    #endregion
 
     #region [6. Core Mechanics - Inventory System Management]
 
@@ -317,7 +290,6 @@ public class PlayerController : Entity
 
         if (inventoryUIPanel != null) inventoryUIPanel.SetActive(false);
         if (chestInventoryUI != null) chestInventoryUI.gameObject.SetActive(false);
-        if (promptText != null) promptText.gameObject.SetActive(false);
 
         ToggleCursorAndHUD(true);
     }

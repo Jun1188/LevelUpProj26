@@ -37,14 +37,13 @@ public class SystemUIManager : MonoBehaviour
     // ====================================================================
     public void UpdateHUD()
     {
-        // GameManager가 씬에 없으면 에러 방지를 위해 리턴
-        if (GameManager.Instance == null) return;
+        // TimeManager가 씬에 없으면 에러 방지를 위해 리턴
+        if (TimeManager.Instance == null) return;
 
-        GameManager.DayPhase currentPhase = GameManager.Instance.currentPhase; 
-        bool isNight = currentPhase == GameManager.DayPhase.Night;
+        bool isNight = TimeManager.Instance.Phase == DayPhase.Night;
 
         // 1. 날짜 텍스트 반영
-        if (dayText != null) dayText.text = $"Day {GameManager.Instance.currentDayCount}";
+        if (dayText != null) dayText.text = $"Day {TimeManager.Instance.DayNumber}";
 
         // 2. 낮/밤 아이콘 반영
         if (timeIconImage != null)
@@ -84,7 +83,7 @@ public class SystemUIManager : MonoBehaviour
 
         GameManager.Instance.SaveGame();
 
-        Debug.Log($"[시스템] System에 의한 GameManager 호출 / 데이터(Day {GameManager.Instance.currentDayCount}) 저장 완료!");
+        Debug.Log($"[시스템] System에 의한 GameManager 호출 / 데이터(Day {TimeManager.Instance.DayNumber}) 저장 완료!");
     }
 
     public void OnClickLoad()
@@ -93,6 +92,6 @@ public class SystemUIManager : MonoBehaviour
 
         GameManager.Instance.LoadGame();
 
-        Debug.Log($"[시스템] System에 의한 GameManager 호출 / 데이터(Day {GameManager.Instance.currentDayCount}) 불러오기 완료!");
+        Debug.Log($"[시스템] System에 의한 GameManager 호출 / 데이터(Day {TimeManager.Instance.DayNumber}) 불러오기 완료!");
     }
 }

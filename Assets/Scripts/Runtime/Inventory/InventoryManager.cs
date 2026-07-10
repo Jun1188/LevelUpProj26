@@ -195,7 +195,7 @@ public class InventoryManager : MonoBehaviour
                 {
                     playerController.gun.gameObject.SetActive(true);
                     playerController.gun.SetupGunData(weaponItem.gunData); 
-                    Debug.Log($"[무기 교체 완료] {weaponItem.name} 장착 (공격력: {weaponItem.gunData.damage})");
+                    Debug.Log($"[무기 교체 완료] {weaponItem.Name} 장착 (공격력: {weaponItem.gunData.damage})");
                 }
             }
             // 선택된 슬롯이 비어있거나 무기가 아니라면 (예: 광석이나 연료를 들고 있다면) 총을 숨김
@@ -224,7 +224,7 @@ public class InventoryManager : MonoBehaviour
         Vector3 spawnPos = playerController.transform.position + playerController.playerCamera.forward * 1.5f + Vector3.up * 0.5f;
 
         // 2. 빈 게임 오브젝트를 동적 생성하고 이름 부여
-        GameObject dropObj = new($"Dropped_{item.name}");
+        GameObject dropObj = new($"Dropped_{item.Name}");
         dropObj.transform.position = spawnPos;
 
         int interactableLayerIndex = LayerMask.NameToLayer("Interactable");

@@ -6,7 +6,7 @@ public enum ItemType { Ore, Ingot, Component, Fuel, Misc, Weapon, Helmet, Chestp
 [CreateAssetMenu(fileName = "NewItem", menuName = "Factory/Item")]
 public class ItemDataSO : GameDataSO
 {
-    [Obsolete("GameDataSOÀÇ id¿Í displayName·Î ¹Ù²î¾ú½À´Ï´Ù. ÀÌÁ¦ nameÀº Object.nameÀ¸·Î fallbackµË´Ï´Ù.")]
-    public string name => base.name;
+    [Obsolete("GameDataSOï¿½ï¿½ idï¿½ï¿½ displayNameï¿½ï¿½ ï¿½Ù²ï¿½ï¿½ï¿½ï¿½ï¿½Ï´ï¿½. ï¿½ï¿½ï¿½ï¿½ nameï¿½ï¿½ Object.nameï¿½ï¿½ï¿½ï¿½ fallbackï¿½Ë´Ï´ï¿½.")]
+    public string Name => base.name;
     public ItemType type;
 }

@@ -1,5 +1,6 @@
 using System.Text;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 /// <summary>
 /// 수동 플레이 테스트용 유틸: 건물 클릭 → 버퍼 상태 표시, 연결/벨트 아이템 gizmo.
@@ -26,7 +27,7 @@ public class FactoryTest : MonoBehaviour
 
     void Update()
     {
-        if (Input.GetMouseButtonDown(0))
+        if (Mouse.current.leftButton.wasPressedThisFrame)
             DetectAndDisplayBuilding();
     }
 
@@ -35,7 +36,7 @@ public class FactoryTest : MonoBehaviour
         if (mainCamera == null) mainCamera = Camera.main;
         if (mainCamera == null) return;
 
-        Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
+        Ray ray = mainCamera.ScreenPointToRay(Mouse.current.position.value);
         if (Physics.Raycast(ray, out RaycastHit hit, 1000f))
         {
             var view = hit.collider.GetComponentInParent<BuildingView>();

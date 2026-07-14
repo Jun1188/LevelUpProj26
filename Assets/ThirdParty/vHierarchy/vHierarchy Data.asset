@@ -26,6 +26,8 @@ MonoBehaviour:
         - globalObjectIdString: GlobalObjectId_V1-2-bf67dae26e61c9a4984e17d57c07b082-1884211555-0
         - globalObjectIdString: GlobalObjectId_V1-2-bf67dae26e61c9a4984e17d57c07b082-736202792-0
         - globalObjectIdString: GlobalObjectId_V1-2-bf67dae26e61c9a4984e17d57c07b082-86013698-0
+        - globalObjectIdString: GlobalObjectId_V1-2-bf67dae26e61c9a4984e17d57c07b082-2014850527-0
+        - globalObjectIdString: GlobalObjectId_V1-2-bf67dae26e61c9a4984e17d57c07b082-924880103-0
         values:
         - colorIndex: 7
           iconNameOrGuid: Folder Icon
@@ -36,6 +38,14 @@ MonoBehaviour:
           isIconRecursive: 0
           isColorRecursive: 0
         - colorIndex: 8
+          iconNameOrGuid: Folder Icon
+          isIconRecursive: 0
+          isColorRecursive: 0
+        - colorIndex: 0
+          iconNameOrGuid: cs Script Icon
+          isIconRecursive: 0
+          isColorRecursive: 0
+        - colorIndex: 6
           iconNameOrGuid: Folder Icon
           isIconRecursive: 0
           isColorRecursive: 0

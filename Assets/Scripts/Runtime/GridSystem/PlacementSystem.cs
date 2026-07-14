@@ -1,17 +1,27 @@
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 
 /// <summary>
-/// 그리드 기반 배치/철거 컨트롤러
+/// 그리드 기반 배치/철거 컨트롤러 (Input System)
 ///
 /// 모드:
-///  - None        : 아무것도 안 함
-///  - Placing     : BuildingDataSO(data)로 진입. 좌클릭 설치.
-///  - Demolishing : EnterDemolishMode()로 진입. 커서 위 건물 하이라이트, 좌클릭 철거.
-///  두 모드 모두 우클릭/ESC로 빠져나온다.
+///  - None        : 대기. 핫키(B=배치, X=철거) 또는 외부 UI가 API로 진입시킨다.
+///  - Placing     : SelectBuilding()으로 진입. 좌클릭 설치, R 회전, T 벨트 모양 순환.
+///  - Demolishing : EnterDemolishMode()로 진입. 조준 건물 하이라이트, 좌클릭 철거.
+///  두 모드 모두 우클릭/ESC로 종료 (핫키 재입력도 토글로 종료).
 ///
-/// 주의: 지형(바닥)만 groundMask 레이어에 두고, 설치된 건물은 다른 레이어에 둘 것.
+/// 입력: Keyboard.current / Mouse.current 직접 폴링.
+///   PlayerControls.inputactions를 수정하지 않기 위한 선택 (팀 병합 충돌 방지).
+///   액션 에셋으로 옮기게 되면 이 파일의 폴링부만 교체하면 된다.
+///
+/// 조준: 커서가 잠겨 있으면(FPS 플레이 중) 화면 중앙 크로스헤어, 아니면 마우스 커서.
+///
+/// 외부(배치 UI) 연동 표면:
+///   SelectBuilding(so) / SelectBuildingByIndex(i) / EnterDemolishMode() / ExitMode()
+///   Mode / CurrentBuilding / Buildings
 /// </summary>
 public class PlacementSystem : MonoBehaviour
 {
@@ -40,22 +50,31 @@ public class PlacementSystem : MonoBehaviour
     [Tooltip("철거 모드에서 대상 건물에 입힐 하이라이트 머티리얼 (빨강 반투명 추천).")]
     [SerializeField] private Material demolishHighlightMat;
 
-    private GridSystem grid; // Awake에서 cellSize/gridOrigin으로 생성
+    [Header("Hotkeys")]
+    [Tooltip("배치 모드 토글 — 마지막으로 선택했던 건물로 진입.")]
+    [SerializeField] private Key buildKey = Key.B;
+    [Tooltip("철거 모드 토글.")]
+    [SerializeField] private Key demolishKey = Key.X;
 
+    private GridSystem grid;
     private BuildMode mode = BuildMode.None;
 
     // 배치 모드 상태
     private BuildingDataSO current;
+    private int lastIndex;                  // 배치 핫키 토글용 — 마지막 선택 건물 인덱스
     private GameObject preview;
     private List<Renderer> previewRenderers = new();
     private int rotation;
-
-    // 벨트 모양 — T키로 직선/L/R 순환
     private BeltShape beltShape;
 
     // 철거 모드 상태
-    private Building hovered;                                      // 지금 하이라이트 중인 건물
+    private Building hovered;                                          // 지금 하이라이트 중인 건물
     private readonly Dictionary<Renderer, Material[]> savedMats = new(); // 원본 머티리얼 백업
+
+    // ── 외부(UI) 조회용
+    public BuildMode Mode => mode;
+    public BuildingDataSO CurrentBuilding => current;
+    public IReadOnlyList<BuildingDataSO> Buildings => buildingDataList;
 
     void Awake()
     {
@@ -65,6 +84,8 @@ public class PlacementSystem : MonoBehaviour
 
     void Update()
     {
+        HandleModeHotkeys();
+
         switch (mode)
         {
             case BuildMode.Placing: UpdatePlacing(); break;
@@ -72,7 +93,47 @@ public class PlacementSystem : MonoBehaviour
         }
     }
 
-    // ===================== 모드 진입/종료 =====================
+    // ===================== 입력 헬퍼 =====================
+
+    static bool KeyDown(Key key)
+    {
+        var kb = Keyboard.current;
+        return kb != null && kb[key].wasPressedThisFrame;
+    }
+
+    static bool ClickDown =>
+        Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame && !IsPointerOverUI();
+
+    static bool CancelDown =>
+        (Mouse.current != null && Mouse.current.rightButton.wasPressedThisFrame) || KeyDown(Key.Escape);
+
+    /// <summary>UI 위 클릭이 지형/건물 조작으로 새는 것 방지.</summary>
+    static bool IsPointerOverUI() =>
+        EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
+
+    /// <summary>조준 레이 — 커서 잠금(FPS)이면 화면 중앙, 아니면 마우스 커서.</summary>
+    Ray AimRay()
+    {
+        if (Cursor.lockState == CursorLockMode.Locked || Mouse.current == null)
+            return cam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+        return cam.ScreenPointToRay(Mouse.current.position.ReadValue());
+    }
+
+    void HandleModeHotkeys()
+    {
+        if (KeyDown(buildKey))
+        {
+            if (mode == BuildMode.Placing) ExitMode();
+            else SelectBuildingByIndex(lastIndex);
+        }
+        if (KeyDown(demolishKey))
+        {
+            if (mode == BuildMode.Demolishing) ExitMode();
+            else EnterDemolishMode();
+        }
+    }
+
+    // ===================== 모드 진입/종료 (UI 연동 표면) =====================
 
     public void SelectBuilding(BuildingDataSO data)
     {
@@ -85,43 +146,18 @@ public class PlacementSystem : MonoBehaviour
         SpawnPreview();
     }
 
-    private int _index = 0;
-    private void _SelectBuildingTest()
+    /// <summary>buildingDataList 인덱스로 선택 — 배치 UI의 버튼/단축키용.</summary>
+    public void SelectBuildingByIndex(int index)
     {
-        if (!Application.isPlaying)
-            return;
-        if (buildingDataList.Length == 0)
-            return;
-        if (_index >= buildingDataList.Length)
-            _index = 0;
-        SelectBuilding(buildingDataList[_index++]);
+        if (buildingDataList == null || index < 0 || index >= buildingDataList.Length) return;
+        lastIndex = index;
+        SelectBuilding(buildingDataList[index]);
     }
 
     public void EnterDemolishMode()
     {
         ExitMode();
         mode = BuildMode.Demolishing;
-    }
-
-    private void _EnterDemolishModeTest()
-    {
-        if (!Application.isPlaying)
-            return;
-        EnterDemolishMode();
-    }
-
-    private void OnGUI()
-    {
-        if (GUI.Button(new Rect(20, 20, 150, 60), "_SelectBuildingTest"))
-        {
-            _SelectBuildingTest();
-        }
-        if (GUI.Button(new Rect(20, 100, 150, 60), "_EnterDemolishModeTest"))
-        {
-            _EnterDemolishModeTest();
-        }
-
-        GUI.TextArea(new Rect(20, 170, 200, 40), "회전 : R\n벨트 모양 : T (직선/L/R)");
     }
 
     /// <summary>현재 모드를 빠져나오며 프리뷰/하이라이트를 정리한다.</summary>
@@ -140,23 +176,29 @@ public class PlacementSystem : MonoBehaviour
 
     private void UpdatePlacing()
     {
-        if (Input.GetKeyDown(KeyCode.R))
+        if (KeyDown(Key.R))
             rotation = (rotation + 1) % 4;
 
         // T: 벨트 모양 순환 (직선 → L → R)
-        if (Input.GetKeyDown(KeyCode.T) && current is BeltDataSO)
+        if (KeyDown(Key.T) && current is BeltDataSO)
         {
             beltShape = (BeltShape)(((int)beltShape + 1) % 3);
             SpawnPreview();   // 모양이 바뀌면 프리뷰 메시 교체
         }
 
-        if (Input.GetMouseButtonDown(1) || Input.GetKeyDown(KeyCode.Escape))
+        if (CancelDown)
         {
             ExitMode();
             return;
         }
 
-        if (!TryGetGroundPoint(out Vector3 cursorPoint)) return;
+        // 지형을 조준하지 못하면 프리뷰를 숨긴다 (허공에 떠 있지 않게)
+        if (!TryGetGroundPoint(out Vector3 cursorPoint))
+        {
+            if (preview != null) preview.SetActive(false);
+            return;
+        }
+        if (preview != null && !preview.activeSelf) preview.SetActive(true);
 
         Vector2Int origin = grid.WorldToGrid(cursorPoint);
         Vector2Int size = current.GetRotatedSize(rotation);
@@ -171,7 +213,7 @@ public class PlacementSystem : MonoBehaviour
         bool canPlace = heightOk && CanPlace(origin, size);
         SetPreviewColor(canPlace);
 
-        if (canPlace && Input.GetMouseButtonDown(0))
+        if (canPlace && ClickDown)
             Place(origin, pos);
     }
 
@@ -188,13 +230,13 @@ public class PlacementSystem : MonoBehaviour
 
     private void UpdateDemolishing()
     {
-        if (Input.GetMouseButtonDown(1) || Input.GetKeyDown(KeyCode.Escape))
+        if (CancelDown)
         {
             ExitMode();
             return;
         }
 
-        // 커서가 가리키는 칸 → 그 칸의 건물 찾기
+        // 조준하는 칸 → 그 칸의 건물 찾기
         Building target = null;
         if (TryGetGroundPoint(out Vector3 cursorPoint))
         {
@@ -206,7 +248,7 @@ public class PlacementSystem : MonoBehaviour
         SetHovered(target);
 
         // 좌클릭으로 철거 (모드는 유지 → 연속 철거 가능)
-        if (target != null && Input.GetMouseButtonDown(0))
+        if (target != null && ClickDown)
             Demolish(target);
     }
 
@@ -262,8 +304,7 @@ public class PlacementSystem : MonoBehaviour
 
     private bool TryGetGroundPoint(out Vector3 point)
     {
-        Ray ray = cam.ScreenPointToRay(Input.mousePosition);
-        if (Physics.Raycast(ray, out RaycastHit hit, 1000f, groundMask))
+        if (Physics.Raycast(AimRay(), out RaycastHit hit, 1000f, groundMask))
         {
             point = hit.point;
             return true;
@@ -299,14 +340,14 @@ public class PlacementSystem : MonoBehaviour
         return (max - min) <= maxSlopeHeightDiff;
     }
 
-    private IEnumerable<Vector2Int> GetCells(Vector2Int origin, Vector2Int size)
+    private static IEnumerable<Vector2Int> GetCells(Vector2Int origin, Vector2Int size)
     {
         for (int x = 0; x < size.x; x++)
             for (int z = 0; z < size.y; z++)
                 yield return origin + new Vector2Int(x, z);
     }
 
-    private bool CanPlace(Vector2Int origin, Vector2Int size)
+    private static bool CanPlace(Vector2Int origin, Vector2Int size)
         => GetCells(origin, size).All(c => !FactoryBootstrap.Instance.Sim.Grid.IsOccupied(c));
 
     private void SpawnPreview()
@@ -315,7 +356,12 @@ public class PlacementSystem : MonoBehaviour
         previewRenderers.Clear();
 
         var prefab = current is BeltDataSO belt ? belt.PrefabFor(beltShape) : current.prefab;
-        if (prefab == null) prefab = current.prefab;   // 커브 프리팹 미지정 시 직선으로 폴백
+        if (prefab == null)
+        {
+            preview = new GameObject("Preview (프리팹 없음)");
+            return;
+        }
+
         preview = Instantiate(prefab);
         foreach (var col in preview.GetComponentsInChildren<Collider>())
             col.enabled = false;

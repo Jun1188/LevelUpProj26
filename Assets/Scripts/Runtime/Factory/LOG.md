@@ -165,29 +165,14 @@
 
 ---
 
-## 2026-07-07 — 합류기/분배기 건물 추가
+## 2026-07-06 — TagSO 철회
 
-- 팀 합의("분기/합류는 전용 건물, 벨트 세그먼트는 선형 유지")의 실제 구현. 둘 다 벨트가 아니므로 세그먼트가 앞뒤에서 자연스럽게 끊김
-- **Splitter** (입력 1 → 출력 East/North/South): **라운드로빈 분배** — `TryPushOutput`의 "첫 연결 독식" 문제를 여기서 해결. 막힌 출구는 건너뜀 (Factorio 스타일)
-- **Merger** (입력 West/North/South → 출력 1): 통과 버퍼(1칸). 입력 공정성은 선착순 — 굶는 라인이 보이면 입력 연결별 라운드로빈으로 개선 (TODO 주석)
-- 에셋 Splitter/Merger 생성 (프리팹 미지정 — 빈 GO로 동작, 메시는 추후). 새 건물 = SO+행동 파일 1개 규칙의 첫 실전 사례
-- 테스트 S8(분배 균등성: 양쪽 저장소 차이 ≤2), S9(합류: 광석/주괴 두 소스 모두 통과) 추가
-
----
-
-## 2026-07-07 — 재설계 3단계: 심/뷰 분리 완료
-
-- **구조**: 시뮬레이션 전체가 plain C#으로 이동 — Unity 접점은 딱 2개
-  - `FactorySim` — 루트: 시계(Now)·Dirty Queue·Wake heap·배치/제거(`Place`/`Remove`)·`GridIndex`(구 GridRegistry)·`BuildingGraph`·`BeltSegmentManager`를 소유. `Advance(dt)`로 구동
-  - `Building` — 심 엔티티 (구 BuildingInstance). 행동은 `_b.Sim`으로 심 서비스 접근 (싱글톤 전멸)
-  - `FactoryBootstrap` — 유일한 드라이버 Mono: 심 생성 + 매 프레임 Advance + Building↔View 매핑
-  - `BuildingView` — GO와 심을 잇는 다리 (필드 하나). **BuildingInstance.cs를 GUID 유지한 채 리네임**해서 프리팹의 기존 컴포넌트 참조가 그대로 BuildingView로 살아있음
-- **삭제**: BuildingSimulation.cs(SimulationSystem), GridRegistry.cs, MiningService(→ `FactorySim.GetResourceAt` 주입)
-- **효과**:
-  - 특성화 테스트가 씬·GameObject·프레임 대기 없이 **동기 실행** — 전체 스위트가 첫 프레임에 즉시 완료 (기존: 배속 10으로 20~30초)
-  - 세이브/로드 기반 완성: 심 상태 전체가 plain 데이터 (Building/ItemContainer/BeltSegment)
-  - 철거 시 Unity Destroy 지연에 의존하던 코드 소멸 (IsRemoved 플래그로 일원화)
-- **씬 요구사항**: FactoryBootstrap 컴포넌트 하나만 있으면 됨 (기존 씬의 FactoryBootstrap이 그대로 드라이버가 됨 — 씬 수정 불필요). tps/maxCatchUpTicks는 드라이버 인스펙터에서 설정
+- 도입 근거였던 용처 3개가 전부 소멸/연기됨: 포트 필터는 `AcceptFilter`(레시피 참조)로 해결, 태그 재료 레시피는 기획 미확정, UI 분류는 UI 자체가 없음 → **소비자 0곳인 죽은 선언**이라 `AcceptedTypes`·`BuildingCategory`를 지운 것과 같은 기준으로 삭제
+- `TagSO.cs`, `GameDataSO.tags`, `HasTag()` 제거
+- **재도입 조건** (그때 파일 하나 + 필드 하나로 복원 가능):
+  1. "X 계열 아무거나" 재료 레시피가 기획으로 확정될 때
+  2. 필터 벨트/분배기 등 플레이어 설정형 필터 건물을 만들 때
+  3. UI 카테고리 필터가 생길 때
 
 ---
 
@@ -207,11 +192,39 @@
 
 ---
 
-## 2026-07-06 — TagSO 철회
+## 2026-07-07 — 재설계 3단계: 심/뷰 분리 완료
 
-- 도입 근거였던 용처 3개가 전부 소멸/연기됨: 포트 필터는 `AcceptFilter`(레시피 참조)로 해결, 태그 재료 레시피는 기획 미확정, UI 분류는 UI 자체가 없음 → **소비자 0곳인 죽은 선언**이라 `AcceptedTypes`·`BuildingCategory`를 지운 것과 같은 기준으로 삭제
-- `TagSO.cs`, `GameDataSO.tags`, `HasTag()` 제거
-- **재도입 조건** (그때 파일 하나 + 필드 하나로 복원 가능):
-  1. "X 계열 아무거나" 재료 레시피가 기획으로 확정될 때
-  2. 필터 벨트/분배기 등 플레이어 설정형 필터 건물을 만들 때
-  3. UI 카테고리 필터가 생길 때
+- **구조**: 시뮬레이션 전체가 plain C#으로 이동 — Unity 접점은 딱 2개
+  - `FactorySim` — 루트: 시계(Now)·Dirty Queue·Wake heap·배치/제거(`Place`/`Remove`)·`GridIndex`(구 GridRegistry)·`BuildingGraph`·`BeltSegmentManager`를 소유. `Advance(dt)`로 구동
+  - `Building` — 심 엔티티 (구 BuildingInstance). 행동은 `_b.Sim`으로 심 서비스 접근 (싱글톤 전멸)
+  - `FactoryBootstrap` — 유일한 드라이버 Mono: 심 생성 + 매 프레임 Advance + Building↔View 매핑
+  - `BuildingView` — GO와 심을 잇는 다리 (필드 하나). **BuildingInstance.cs를 GUID 유지한 채 리네임**해서 프리팹의 기존 컴포넌트 참조가 그대로 BuildingView로 살아있음
+- **삭제**: BuildingSimulation.cs(SimulationSystem), GridRegistry.cs, MiningService(→ `FactorySim.GetResourceAt` 주입)
+- **효과**:
+  - 특성화 테스트가 씬·GameObject·프레임 대기 없이 **동기 실행** — 전체 스위트가 첫 프레임에 즉시 완료 (기존: 배속 10으로 20~30초)
+  - 세이브/로드 기반 완성: 심 상태 전체가 plain 데이터 (Building/ItemContainer/BeltSegment)
+  - 철거 시 Unity Destroy 지연에 의존하던 코드 소멸 (IsRemoved 플래그로 일원화)
+- **씬 요구사항**: FactoryBootstrap 컴포넌트 하나만 있으면 됨 (기존 씬의 FactoryBootstrap이 그대로 드라이버가 됨 — 씬 수정 불필요). tps/maxCatchUpTicks는 드라이버 인스펙터에서 설정
+
+---
+
+## 2026-07-07 — 합류기/분배기 건물 추가
+
+- 팀 합의("분기/합류는 전용 건물, 벨트 세그먼트는 선형 유지")의 실제 구현. 둘 다 벨트가 아니므로 세그먼트가 앞뒤에서 자연스럽게 끊김
+- **Splitter** (입력 1 → 출력 East/North/South): **라운드로빈 분배** — `TryPushOutput`의 "첫 연결 독식" 문제를 여기서 해결. 막힌 출구는 건너뜀 (Factorio 스타일)
+- **Merger** (입력 West/North/South → 출력 1): 통과 버퍼(1칸). 입력 공정성은 선착순 — 굶는 라인이 보이면 입력 연결별 라운드로빈으로 개선 (TODO 주석)
+- 에셋 Splitter/Merger 생성 + 프리팹 연결. 새 건물 = SO+행동 파일 1개 규칙의 첫 실전 사례 (기존 코드 무수정)
+- 테스트 S8(분배 균등성: 양쪽 저장소 차이 ≤2), S9(합류: 광석/주괴 두 소스 모두 통과) 추가 — 9/9 통과
+
+---
+
+## 2026-07-14 — PlacementSystem 실사용 리팩토링 (Input System 전환)
+
+- **입력**: 레거시 `Input.*` → Input System(`Keyboard.current`/`Mouse.current` 폴링).
+  `PlayerControls.inputactions`는 수정하지 않음 — 팀 병합 충돌 방지. 액션 에셋으로 옮길 땐 폴링부만 교체
+- **테스트 UI 제거**: OnGUI 버튼(_SelectBuildingTest 등) 삭제 → 실사용 표면으로 대체
+  - 핫키: **B** = 배치 모드 토글(마지막 선택 건물), **X** = 철거 모드 토글 (인스펙터에서 키 변경 가능)
+  - UI 연동 API: `SelectBuilding(so)` / `SelectBuildingByIndex(i)` / `EnterDemolishMode()` / `ExitMode()` + `Mode`/`CurrentBuilding`/`Buildings` 조회 — 배치 UI(빌드 메뉴)가 붙을 자리
+- **FPS 겸용 조준**: 커서 잠금 상태(FPS 플레이)면 화면 중앙 크로스헤어로, 아니면 마우스 커서로 레이캐스트
+- **실사용 방어**: UI 위 클릭이 배치/철거로 새지 않게 `EventSystem.IsPointerOverGameObject` 가드, 지형 미조준 시 프리뷰 숨김, 벨트 프리뷰가 모양(T키)에 맞는 커브 메시로 교체되도록 수정
+- **주의**: 플레이어 핫바(숫자키)와 충돌하지 않도록 숫자키 바인딩은 넣지 않음 — 건물 선택은 UI/API 경유가 정석

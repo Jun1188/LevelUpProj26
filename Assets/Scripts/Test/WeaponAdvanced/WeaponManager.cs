@@ -6,12 +6,17 @@ public class WeaponManager : MonoBehaviour
     public WeaponBase[] weapons; // 하위에 있는 Gun1, Gun2 등을 모두 드래그 앤 드롭
     private int currentIndex = -1; // -1이면 현재 맨손 상태
 
+    // 모듈 참조 (Weapon_Holder에 붙어있는 스크립트들)
+    public WeaponMotionManager motionManager;
+    public WeaponADS adsModule;
+    public WeaponKickback kickbackModule;
+
     [Header("Input Buffer (선입력)")]
     private float fireBufferWindow = 0.15f; // 0.15초 동안 입력 기억
     private float lastFireInputTime = -1f;
 
 
-    public ProceduralRecoil recoilHandler;
+    public ProceduralRecoil recoilManager;
 
     public WeaponBase CurrentWeapon
     {
@@ -43,6 +48,9 @@ public class WeaponManager : MonoBehaviour
     private void HandleInput()
     {
         bool isAutomatic = CurrentWeapon.gunData.isAutomatic;
+        if (Input.GetMouseButtonDown(1)) adsModule.isAiming = true;
+        if (Input.GetMouseButtonUp(1)) adsModule.isAiming = false;
+
         if ((isAutomatic && Input.GetMouseButton(0)) || (!isAutomatic && Input.GetMouseButtonDown(0)))
         {
             lastFireInputTime = Time.time; // 마우스를 누른 시간을 갱신
@@ -94,6 +102,20 @@ public class WeaponManager : MonoBehaviour
 
         // 새 무기 켜기
         currentIndex = newIndex;
+
+        Vector3 tempPos = motionManager.transform.localPosition;
+        Quaternion tempRot = motionManager.transform.localRotation;
+
+        motionManager.transform.localPosition = Vector3.zero;
+        motionManager.transform.localRotation = Quaternion.identity;
+
+        // 무기별로 다른 가늠자(SightPoint) 위치를 ADS 모듈에 갱신
+        adsModule.SetupWeapon(weapons[currentIndex].sightPoint);
+
+        // 원래 흔들리던 위치로 복구 (안 하면 스왑할 때 화면이 튐)
+        motionManager.transform.localPosition = tempPos;
+        motionManager.transform.localRotation = tempRot;
+
         CurrentWeapon.gameObject.SetActive(true);
     }
 

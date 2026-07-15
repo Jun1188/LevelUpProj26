@@ -25,6 +25,8 @@ public class GunData : ScriptableObject
     public float xRecoil = 3f;     
     public float yRecoil = 2f;
     public float zRecoil = 1f;
+    public float visualKickbackZ = 1;
+    public Vector3 visualKickbackRot = new Vector3(1, 1, 1);
 
     [Header("Spread (탄퍼짐)")]
     public float baseSpread = 0.5f;        // 기본 탄퍼짐 (가만히 있을 때)

@@ -640,6 +640,10 @@ PrefabInstance:
       propertyPath: promptText
       value: 
       objectReference: {fileID: 123262186}
+    - target: {fileID: 1952428011108166394, guid: 9c0e1513e619b28418f8a1a22933d74a, type: 3}
+      propertyPath: m_Name
+      value: SightPos
+      objectReference: {fileID: 0}
     - target: {fileID: 5008654619937830270, guid: 9c0e1513e619b28418f8a1a22933d74a, type: 3}
       propertyPath: m_LocalPosition.x
       value: -3
@@ -700,17 +704,30 @@ PrefabInstance:
       propertyPath: m_Name
       value: Player
       objectReference: {fileID: 0}
+    - target: {fileID: 7975694653787656419, guid: 9c0e1513e619b28418f8a1a22933d74a, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.67
+      objectReference: {fileID: 0}
+    - target: {fileID: 7975694653787656419, guid: 9c0e1513e619b28418f8a1a22933d74a, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -0.34482276
+      objectReference: {fileID: 0}
     - target: {fileID: 8239470649360977166, guid: 9c0e1513e619b28418f8a1a22933d74a, type: 3}
-      propertyPath: recoilHandler
+      propertyPath: adsModule
       value: 
-      objectReference: {fileID: 1171175236}
+      objectReference: {fileID: 1117371375}
+    - target: {fileID: 8239470649360977166, guid: 9c0e1513e619b28418f8a1a22933d74a, type: 3}
+      propertyPath: motionManager
+      value: 
+      objectReference: {fileID: 1117371376}
+    - target: {fileID: 8239470649360977166, guid: 9c0e1513e619b28418f8a1a22933d74a, type: 3}
+      propertyPath: kickbackModule
+      value: 
+      objectReference: {fileID: 1117371374}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 5888268749807747820, guid: 9c0e1513e619b28418f8a1a22933d74a, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 1171175236}
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 9c0e1513e619b28418f8a1a22933d74a, type: 3}
 --- !u!4 &331194380 stripped
 Transform:
@@ -2242,6 +2259,39 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1078087586}
   m_CullTransparentMesh: 1
+--- !u!114 &1117371374 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 7096013060996383979, guid: 9c0e1513e619b28418f8a1a22933d74a, type: 3}
+  m_PrefabInstance: {fileID: 331194379}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0ae2f3d8f5f4a874bb047217abf557bf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WeaponKickback
+--- !u!114 &1117371375 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 3775902399488542646, guid: 9c0e1513e619b28418f8a1a22933d74a, type: 3}
+  m_PrefabInstance: {fileID: 331194379}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 11b763d5e71097947a2e8129b5debd7e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WeaponADS
+--- !u!114 &1117371376 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 6820147174586236112, guid: 9c0e1513e619b28418f8a1a22933d74a, type: 3}
+  m_PrefabInstance: {fileID: 331194379}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3bbbb2d7770cefe459e9338a90393a96, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WeaponMotionManager
 --- !u!1 &1118431851
 GameObject:
   m_ObjectHideFlags: 0
@@ -2604,25 +2654,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1127188601}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1171175234 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 5888268749807747820, guid: 9c0e1513e619b28418f8a1a22933d74a, type: 3}
-  m_PrefabInstance: {fileID: 331194379}
-  m_PrefabAsset: {fileID: 0}
---- !u!114 &1171175236
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1171175234}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9aea8e4e12c6a134f8550a1ddca20f74, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: '::'
-  snappiness: 20
-  returnSpeed: 10
 --- !u!1 &1214616954
 GameObject:
   m_ObjectHideFlags: 0

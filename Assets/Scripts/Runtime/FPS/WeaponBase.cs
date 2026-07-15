@@ -10,12 +10,18 @@ public abstract class WeaponBase : MonoBehaviour
     [HideInInspector]
     public WeaponManager weaponManager;
 
+    [Header("ADS Settings")]
+    public Transform sightPoint; // ⭐️ 추가: 이 총의 가늠자(눈 위치) 앵커
+    public float zoomFOV = 50f;  // ⭐️ 추가: 이 총을 정조준했을 때의 시야각
+
     [Header("Current States")]
     protected int currentAmmo;
-    protected bool isReloading = false;
+    public bool isReloading = false;
     protected float lastFireTime = 0f;
     protected float currentSpread;
     protected Rigidbody playerRb; // 플레이어의 속도 측정을 위함
+
+
 
 
     protected virtual void Awake()
@@ -83,8 +89,10 @@ public abstract class WeaponBase : MonoBehaviour
 
     protected void ApplyRecoil()
     {
-
-            weaponManager.recoilHandler.FireRecoil(gunData.xRecoil, gunData.yRecoil, gunData.zRecoil);
+        CameraShakeManager.Instance.ShakeOnPlayerShoot(gunData.damage);
+        weaponManager.recoilManager.FireRecoil(gunData.xRecoil, gunData.yRecoil, gunData.zRecoil);
+        bool currentAimState = weaponManager.adsModule.isAiming; // ADS 모듈에서 현재 조준 상태 가져오기
+        weaponManager.kickbackModule.Fire(gunData.visualKickbackZ, gunData.visualKickbackRot, currentAimState);
     }
 
     public void StartReload()

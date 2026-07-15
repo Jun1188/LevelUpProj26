@@ -148,24 +148,6 @@ public class PlayerController : Entity
         isJumpPressed = value.isPressed;
     }
 
-    //public void OnFire(InputValue value)
-    //{
-    //    if (isInventoryOpen || gun == null || gun.gunData == null) return;
-        
-    //    isFiringPressed = value.isPressed;
-    //    gun.SetFiringPressed(isFiringPressed);
-        
-    //    if (isFiringPressed && !gun.gunData.isAutomatic)
-    //    {
-    //        gun.Fire();
-    //    }
-    //}
-
-    //public void OnReload(InputValue value)
-    //{
-    //    if (isInventoryOpen || gun == null) return;
-    //    if (value.isPressed) gun.StartReload();
-    //}
 
     public void OnQuickDrop(InputValue value)
     {
@@ -216,18 +198,7 @@ public class PlayerController : Entity
         }
     }
 
-    public void AddRecoil(Vector3 recoilDirection, float verticalRecoil, float horizontalRecoil)
-    {
-        cameraRotationX -= verticalRecoil; 
-        cameraRotationX = Mathf.Clamp(cameraRotationX, -MAX_CAMERA_ROTATION_X, MAX_CAMERA_ROTATION_X);
-        playerCamera.localRotation = Quaternion.Euler(cameraRotationX, 0f, 0f);
 
-        float currentRecoilSpeed = Vector3.Dot(rb.linearVelocity, recoilDirection);
-        if (currentRecoilSpeed < maxRecoilVelocity)
-        {
-            rb.AddForce(recoilDirection * horizontalRecoil, ForceMode.Impulse);
-        }
-    }
 
     #endregion
 

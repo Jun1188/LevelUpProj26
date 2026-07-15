@@ -25,6 +25,7 @@ public class ProceduralRecoil : MonoBehaviour
     // WeaponBase의 ApplyRecoil()에서 이 함수를 호출합니다.
     public void FireRecoil(float recoilX, float recoilY, float recoilZ)
     {
+
         // 화면이 위로 튀고(X), 좌우로 흔들리며(Y), 총이 비틀림(Z)
         targetRotation += new Vector3(-recoilX, Random.Range(-recoilY, recoilY), Random.Range(-recoilZ, recoilZ));
     }

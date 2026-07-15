@@ -22,8 +22,11 @@ MonoBehaviour:
   bulletPrefab: {fileID: 6104304068761616416, guid: d0ab4e1deef0b934c91bb2c4888b232f, type: 3}
   magSize: 30
   reloadTime: 2
-  verticalRecoil: 3
-  horizontalRecoil: 2
+  xRecoil: 3
+  yRecoil: 2
+  zRecoil: 1
+  visualKickbackZ: 0.3
+  visualKickbackRot: {x: 1, y: 1, z: 1}
   baseSpread: 0.5
   maxSpread: 5
   spreadIncreasePerShot: 1

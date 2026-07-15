@@ -2,7 +2,7 @@
 
 > **대상**: Unity + New Input System 기반 클라이언트 작업자
 > **목적**: 입력 충돌(UI 열린 상태에서의 오조작, ESC 다중 처리 등)을 구조적으로 차단
-> **상태**: 설계 확정, 구현 예정
+> **상태**: 1단계 구현 완료 (①②층 + BuildController) — §11 구현 노트 참조. 변경 이력은 LOG.md
 
 ---
 
@@ -56,7 +56,8 @@ public enum InputActionId
     None,
     // Gameplay Map
     Move, Jump, Attack, Interact, Rotate, Pick,
-    // UI Map
+    // UI Map (Cancel은 Gameplay 맵에도 같은 이름으로 존재 — 건설 취소 등.
+    //         리시버가 기대하는 액션은 "그 리시버가 살아있는 컨텍스트의 맵"에 있어야 한다)
     Cancel, Submit, Navigate,
     // Global Map (맵 스택과 무관하게 항상 활성)
     ToggleInventory, ToggleBuildMenu,
@@ -464,8 +465,30 @@ public class BuildModeController : MonoBehaviour, IInputReceiver
 ## 10. 체크리스트
 
 - [ ] `InputActionId` enum 이름과 에셋의 액션 이름이 1:1 일치하는가
+- [ ] 리시버가 기대하는 액션이 **그 리시버가 살아있는 컨텍스트의 맵**에 존재하는가
 - [ ] 모든 `OnInput` 진입부에 `Phase` 가드가 있는가
 - [ ] `Move` 등 연속 입력이 라우팅에 올라와 있지 않은가
-- [ ] `PushMap`과 `PopMap`이 정확히 짝을 이루는가 (`OnEnable`/`OnDisable`)
+- [ ] `InputEvent`를 `OnInput` 스코프 밖으로 내보내지 않는가 (큐잉/필드 보관 금지)
+- [ ] `IsPointerOverGameObject`를 `OnInput` 안에서 직접 호출하지 않는가 (Update에서 프레임 캐싱)
+- [ ] `PushMap`이 반환한 토큰을 보관했다가 `PopMap(token)`으로 해제하는가
 - [ ] `PlayerController`보다 낮은 우선순위의 리시버가 없는가
 - [ ] 팝업이 depth 없이 고정 우선순위를 쓰고 있지 않은가
+
+---
+
+## 11. 구현 노트 — 설계 대비 변경점 (1단계 구현 반영)
+
+구현 코드가 진실이다. 이 문서의 예시 코드와 다른 부분은 아래가 이유다.
+
+| 설계 | 구현 | 이유 |
+|---|---|---|
+| 공유 에셋에 직접 구독 (§4) | **런타임 사본**(`Instantiate(asset)`)에 구독, `OnDestroy`에서 파괴 | 공유 에셋 구독은 씬 리로드·도메인 리로드 꺼짐 환경에서 잔존 람다(파괴된 매니저로의 유령 디스패치)를 만든다 |
+| `PushMap/PopMap(string)` + 최상단 검사 (§4) | `PushMap`이 **토큰** 반환, `PopMap(token)`은 중간 제거 허용 | 팝업은 LIFO로 닫힌다는 보장이 없다 (X 버튼). 이름 기반 Pop은 혼합 스택에서 오염을 남김. §7-3의 참조 카운트 문제도 함께 해소 (같은 맵 중첩 시 Disable→Enable 왕복 생략) |
+| `Cancel`은 UI 맵 (§3) | Gameplay 맵에도 동명 액션 | 건설 취소 등 Gameplay 컨텍스트에서도 Cancel이 필요. 활성 맵의 것이 발화 |
+| §6 `PlayerController`가 Move를 라우팅으로 수신 | (미구현 — ④단계) 구현 시 **라우팅 제외 + Tick 폴링**으로 통일 예정 | §7-1과의 모순 해소. 게임패드 스틱은 매 프레임 이벤트를 만든다 |
+| §8 `BuildModeController`가 로직 포함 | **BuildController**(입력 해석) + **PlacementSystem**(배치 로직·API) 분리 | 배치 로직은 파이프라인을 모른다 → 배치 UI·테스트 코드가 같은 API를 직접 호출 가능 |
+| — | `InputEvent` 스코프 밖 보관 금지 명시 | `CallbackContext`는 콜백 동안만 유효 |
+| — | `IsPointerOverGameObject`는 Update에서 프레임당 1회 캐싱 | 입력 콜백 안 호출은 Unity 경고 + 어차피 직전 프레임 상태 |
+
+**구현 위치**: `InputTypes.cs` / `InputManager.cs` / `GameInput.inputactions`(Gameplay·Global 맵, PlayerControls 무접촉) / `GridSystem/BuildController.cs`
+**남은 단계**: ③ UIPopup 베이스 + 인벤토리 이관 → ④ PlayerController FSM 이관 (각 담당자 협의 필요)

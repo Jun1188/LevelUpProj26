@@ -1,27 +1,20 @@
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 
 /// <summary>
-/// 그리드 기반 배치/철거 컨트롤러 (Input System)
+/// 그리드 기반 배치/철거 로직 — 입력을 모른다.
+/// 이산 입력(토글/회전/설치 등)은 BuildController(파이프라인 리시버)가 이 API를 호출하고,
+/// 배치 UI(빌드 메뉴)·테스트 코드도 같은 API를 직접 호출할 수 있다.
 ///
 /// 모드:
-///  - None        : 대기. 핫키(B=배치, X=철거) 또는 외부 UI가 API로 진입시킨다.
-///  - Placing     : SelectBuilding()으로 진입. 좌클릭 설치, R 회전, T 벨트 모양 순환.
-///  - Demolishing : EnterDemolishMode()로 진입. 조준 건물 하이라이트, 좌클릭 철거.
-///  두 모드 모두 우클릭/ESC로 종료 (핫키 재입력도 토글로 종료).
+///  - None        : 대기
+///  - Placing     : SelectBuilding()으로 진입. 프리뷰 표시, ConfirmAtAim()=설치
+///  - Demolishing : EnterDemolishMode()로 진입. 조준 건물 하이라이트, ConfirmAtAim()=철거
 ///
-/// 입력: Keyboard.current / Mouse.current 직접 폴링.
-///   PlayerControls.inputactions를 수정하지 않기 위한 선택 (팀 병합 충돌 방지).
-///   액션 에셋으로 옮기게 되면 이 파일의 폴링부만 교체하면 된다.
-///
+/// 연속 입력(조준 레이, 호버 하이라이트)만 Update에서 직접 폴링한다 (§7-1).
 /// 조준: 커서가 잠겨 있으면(FPS 플레이 중) 화면 중앙 크로스헤어, 아니면 마우스 커서.
-///
-/// 외부(배치 UI) 연동 표면:
-///   SelectBuilding(so) / SelectBuildingByIndex(i) / EnterDemolishMode() / ExitMode()
-///   Mode / CurrentBuilding / Buildings
 /// </summary>
 public class PlacementSystem : MonoBehaviour
 {
@@ -50,22 +43,22 @@ public class PlacementSystem : MonoBehaviour
     [Tooltip("철거 모드에서 대상 건물에 입힐 하이라이트 머티리얼 (빨강 반투명 추천).")]
     [SerializeField] private Material demolishHighlightMat;
 
-    [Header("Hotkeys")]
-    [Tooltip("배치 모드 토글 — 마지막으로 선택했던 건물로 진입.")]
-    [SerializeField] private Key buildKey = Key.B;
-    [Tooltip("철거 모드 토글.")]
-    [SerializeField] private Key demolishKey = Key.X;
-
     private GridSystem grid;
     private BuildMode mode = BuildMode.None;
 
     // 배치 모드 상태
     private BuildingDataSO current;
-    private int lastIndex;                  // 배치 핫키 토글용 — 마지막 선택 건물 인덱스
+    private int lastIndex;                  // 배치 토글용 — 마지막 선택 건물 인덱스
     private GameObject preview;
     private List<Renderer> previewRenderers = new();
     private int rotation;
     private BeltShape beltShape;
+
+    // Update(조준 폴링)가 계산하고 OnInput(Attack)이 사용하는 캐시.
+    // 입력 이벤트는 프레임 중간에 오므로 마지막 프레임의 판정을 쓴다.
+    private bool lastCanPlace;
+    private Vector2Int lastOrigin;
+    private Vector3 lastPos;
 
     // 철거 모드 상태
     private Building hovered;                                          // 지금 하이라이트 중인 건물
@@ -84,8 +77,7 @@ public class PlacementSystem : MonoBehaviour
 
     void Update()
     {
-        HandleModeHotkeys();
-
+        // 연속 입력(조준/프리뷰/호버)만 여기서 폴링 — 이산 입력은 BuildController가 API로 호출
         switch (mode)
         {
             case BuildMode.Placing: UpdatePlacing(); break;
@@ -93,23 +85,49 @@ public class PlacementSystem : MonoBehaviour
         }
     }
 
-    // ===================== 입력 헬퍼 =====================
+    // ===================== 조작 API (BuildController/배치 UI가 호출) =====================
 
-    static bool KeyDown(Key key)
+    /// <summary>배치 모드 토글 — 마지막으로 선택했던 건물로 진입.</summary>
+    public void ToggleBuildMode()
     {
-        var kb = Keyboard.current;
-        return kb != null && kb[key].wasPressedThisFrame;
+        if (mode == BuildMode.Placing) ExitMode();
+        else SelectBuildingByIndex(lastIndex);
     }
 
-    static bool ClickDown =>
-        Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame && !IsPointerOverUI();
+    /// <summary>철거 모드 토글.</summary>
+    public void ToggleDemolishMode()
+    {
+        if (mode == BuildMode.Demolishing) ExitMode();
+        else EnterDemolishMode();
+    }
 
-    static bool CancelDown =>
-        (Mouse.current != null && Mouse.current.rightButton.wasPressedThisFrame) || KeyDown(Key.Escape);
+    /// <summary>프리뷰 90° 회전. 배치 모드가 아니면 false(아무 일 없음).</summary>
+    public bool RotatePreview()
+    {
+        if (mode != BuildMode.Placing) return false;
+        rotation = (rotation + 1) % 4;
+        return true;
+    }
 
-    /// <summary>UI 위 클릭이 지형/건물 조작으로 새는 것 방지.</summary>
-    static bool IsPointerOverUI() =>
-        EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
+    /// <summary>벨트 모양 순환(직선→L→R). 벨트 배치 중이 아니면 false.</summary>
+    public bool CycleBeltShape()
+    {
+        if (mode != BuildMode.Placing || current is not BeltDataSO) return false;
+        beltShape = (BeltShape)(((int)beltShape + 1) % 3);
+        SpawnPreview();   // 모양이 바뀌면 프리뷰 메시 교체
+        return true;
+    }
+
+    /// <summary>현재 조준 지점에서 확정 — 배치 모드면 설치, 철거 모드면 철거.</summary>
+    public void ConfirmAtAim()
+    {
+        if (mode == BuildMode.Placing && lastCanPlace)
+            Place(lastOrigin, lastPos);
+        else if (mode == BuildMode.Demolishing && hovered != null)
+            Demolish(hovered);
+    }
+
+    // ===================== 조준 헬퍼 (폴링) =====================
 
     /// <summary>조준 레이 — 커서 잠금(FPS)이면 화면 중앙, 아니면 마우스 커서.</summary>
     Ray AimRay()
@@ -117,20 +135,6 @@ public class PlacementSystem : MonoBehaviour
         if (Cursor.lockState == CursorLockMode.Locked || Mouse.current == null)
             return cam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
         return cam.ScreenPointToRay(Mouse.current.position.ReadValue());
-    }
-
-    void HandleModeHotkeys()
-    {
-        if (KeyDown(buildKey))
-        {
-            if (mode == BuildMode.Placing) ExitMode();
-            else SelectBuildingByIndex(lastIndex);
-        }
-        if (KeyDown(demolishKey))
-        {
-            if (mode == BuildMode.Demolishing) ExitMode();
-            else EnterDemolishMode();
-        }
     }
 
     // ===================== 모드 진입/종료 (UI 연동 표면) =====================
@@ -143,6 +147,7 @@ public class PlacementSystem : MonoBehaviour
         current = data;
         rotation = 0;
         beltShape = BeltShape.Straight;
+        lastCanPlace = false;   // 첫 Update가 판정을 채우기 전 Attack 방지
         SpawnPreview();
     }
 
@@ -176,26 +181,11 @@ public class PlacementSystem : MonoBehaviour
 
     private void UpdatePlacing()
     {
-        if (KeyDown(Key.R))
-            rotation = (rotation + 1) % 4;
-
-        // T: 벨트 모양 순환 (직선 → L → R)
-        if (KeyDown(Key.T) && current is BeltDataSO)
-        {
-            beltShape = (BeltShape)(((int)beltShape + 1) % 3);
-            SpawnPreview();   // 모양이 바뀌면 프리뷰 메시 교체
-        }
-
-        if (CancelDown)
-        {
-            ExitMode();
-            return;
-        }
-
         // 지형을 조준하지 못하면 프리뷰를 숨긴다 (허공에 떠 있지 않게)
         if (!TryGetGroundPoint(out Vector3 cursorPoint))
         {
             if (preview != null) preview.SetActive(false);
+            lastCanPlace = false;
             return;
         }
         if (preview != null && !preview.activeSelf) preview.SetActive(true);
@@ -210,11 +200,11 @@ public class PlacementSystem : MonoBehaviour
         preview.transform.position = pos;
         preview.transform.rotation = Quaternion.Euler(0, rotation * 90, 0);
 
-        bool canPlace = heightOk && CanPlace(origin, size);
-        SetPreviewColor(canPlace);
-
-        if (canPlace && ClickDown)
-            Place(origin, pos);
+        // 설치 판정 캐시 — OnInput(Attack)이 사용
+        lastCanPlace = heightOk && CanPlace(origin, size);
+        lastOrigin   = origin;
+        lastPos      = pos;
+        SetPreviewColor(lastCanPlace);
     }
 
     private void Place(Vector2Int origin, Vector3 pos)
@@ -230,26 +220,14 @@ public class PlacementSystem : MonoBehaviour
 
     private void UpdateDemolishing()
     {
-        if (CancelDown)
-        {
-            ExitMode();
-            return;
-        }
-
-        // 조준하는 칸 → 그 칸의 건물 찾기
+        // 조준하는 칸 → 그 칸의 건물 찾아 하이라이트 갱신 (철거는 OnInput(Attack)이 수행)
         Building target = null;
         if (TryGetGroundPoint(out Vector3 cursorPoint))
         {
             Vector2Int cell = grid.WorldToGrid(cursorPoint);
             target = FactoryBootstrap.Instance.Sim.Grid.GetAt(cell);
         }
-
-        // 대상이 바뀌면 하이라이트 갱신
         SetHovered(target);
-
-        // 좌클릭으로 철거 (모드는 유지 → 연속 철거 가능)
-        if (target != null && ClickDown)
-            Demolish(target);
     }
 
     /// <summary>특정 건물을 철거한다. 점유 칸 모두 해제 + 인스턴스 파괴.</summary>

@@ -24,3 +24,7 @@ MonoBehaviour:
   reloadTime: 2
   verticalRecoil: 3
   horizontalRecoil: 2
+  baseSpread: 0.5
+  maxSpread: 5
+  spreadIncreasePerShot: 1
+  spreadRecoveryRate: 5

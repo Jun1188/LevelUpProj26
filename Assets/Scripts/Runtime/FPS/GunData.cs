@@ -22,6 +22,13 @@ public class GunData : ScriptableObject
     public float reloadTime = 1.5f;
 
     [Header("Recoil Settings (반동 제어)")]
-    public float verticalRecoil = 3f;     
-    public float horizontalRecoil = 2f;   
+    public float xRecoil = 3f;     
+    public float yRecoil = 2f;
+    public float zRecoil = 1f;
+
+    [Header("Spread (탄퍼짐)")]
+    public float baseSpread = 0.5f;        // 기본 탄퍼짐 (가만히 있을 때)
+    public float maxSpread = 5f;           // 최대 탄퍼짐
+    public float spreadIncreasePerShot = 1f; // 쏠 때마다 늘어나는 수치
+    public float spreadRecoveryRate = 5f;    // 다시 에임이 모이는 속도
 }

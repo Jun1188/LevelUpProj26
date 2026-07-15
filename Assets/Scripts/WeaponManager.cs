@@ -6,6 +6,13 @@ public class WeaponManager : MonoBehaviour
     public WeaponBase[] weapons; // 하위에 있는 Gun1, Gun2 등을 모두 드래그 앤 드롭
     private int currentIndex = -1; // -1이면 현재 맨손 상태
 
+    [Header("Input Buffer (선입력)")]
+    private float fireBufferWindow = 0.15f; // 0.15초 동안 입력 기억
+    private float lastFireInputTime = -1f;
+
+
+    public ProceduralRecoil recoilHandler;
+
     public WeaponBase CurrentWeapon
     {
         get
@@ -22,6 +29,7 @@ public class WeaponManager : MonoBehaviour
         foreach (var weapon in weapons)
         {
             weapon.gameObject.SetActive(false);
+            weapon.weaponManager = this; 
         }
     }
 
@@ -34,9 +42,21 @@ public class WeaponManager : MonoBehaviour
 
     private void HandleInput()
     {
-        bool isFireInput = CurrentWeapon.gunData.isAutomatic ? Input.GetMouseButton(0) : Input.GetMouseButtonDown(0);
+        bool isAutomatic = CurrentWeapon.gunData.isAutomatic;
+        if ((isAutomatic && Input.GetMouseButton(0)) || (!isAutomatic && Input.GetMouseButtonDown(0)))
+        {
+            lastFireInputTime = Time.time; // 마우스를 누른 시간을 갱신
+        }
 
-        if (isFireInput) CurrentWeapon.TryFire();
+        // 2. 버퍼 시간(0.15초) 내에 있다면 계속 사격 시도
+        if (Time.time - lastFireInputTime <= fireBufferWindow)
+        {
+            if (CurrentWeapon.TryFire())
+            {
+                lastFireInputTime = -1f; // ⭐️ 발사에 성공하면 버퍼를 비움(소비)
+            }
+        }
+
         if (Input.GetKeyDown(KeyCode.R)) CurrentWeapon.StartReload();
     }
 

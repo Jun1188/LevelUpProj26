@@ -104,6 +104,9 @@ public class HandSway : MonoBehaviour
     private Vector3 _smoothedMovePos;
     private Quaternion _smoothedMoveRot = Quaternion.identity;
 
+    private bool _wasGrounded = true;
+    private float _fallDistance = 0f; // 체공 시간 기록용
+
     private Rigidbody _rb;
 
     // ─────────────────────────────────────────────────────────────────
@@ -123,6 +126,8 @@ public class HandSway : MonoBehaviour
         // bob 오프셋을 먼저 계산해 sway target에 합산
         Vector3 bobOffset = ComputeBobOffset();
 
+
+        ApplyLandingBob(); // 착지 반동 추가
         ApplyPositionSway(bobOffset);
         ApplyRotationSway();
     }
@@ -233,6 +238,31 @@ public class HandSway : MonoBehaviour
             targetRot,
             Time.deltaTime * rotSwaySmooth
         );
+    }
+
+    private void ApplyLandingBob()
+    {
+        if (_rb == null) return;
+
+        // 임의의 Ground Check (실제 PlayerController의 isGrounded를 가져오는 것이 더 정확함)
+        bool isGrounded = Physics.Raycast(_rb.transform.position, Vector3.down, 1.2f);
+
+        if (!isGrounded)
+        {
+            _fallDistance += Time.deltaTime; // 떠있는 시간 기록
+        }
+        else if (!_wasGrounded && isGrounded) // 공중에 있다가 방금 착지함!
+        {
+            if (_fallDistance > 0.2f) // 살짝 뜬 건 무시, 좀 높이서 떨어졌을 때만
+            {
+                // 아래로 강하게 찍히는 임펄스(충격) 적용
+                _smoothedMovePos += new Vector3(0f, -0.15f, 0f); // 무기가 아래로 푹 꺼짐
+                _smoothedMoveRot *= Quaternion.Euler(15f, 0f, 0f); // 무기가 앞으로 쏠림
+            }
+            _fallDistance = 0f;
+        }
+
+        _wasGrounded = isGrounded;
     }
 
     // ─── Editor 유틸 ─────────────────────────────────────────────────

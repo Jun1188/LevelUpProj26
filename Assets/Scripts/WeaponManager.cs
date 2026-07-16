@@ -1,10 +1,18 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
-public class WeaponManager : MonoBehaviour
+/// <summary>
+/// 무기 장착/교체 + 사격·재장전 입력 — 입력 파이프라인의 Player 리시버.
+/// 레거시 Input.GetMouseButton 폴링을 라우팅으로 대체 —
+/// 건설 모드(BuildController가 Attack 소비)·팝업(UI 맵) 중에는 신호가 도달하지 않는다.
+/// </summary>
+public class WeaponManager : MonoBehaviour, IInputReceiver
 {
     [Header("Weapon Ob List")]
     public WeaponBase[] weapons; // 하위에 있는 Gun1, Gun2 등을 모두 드래그 앤 드롭
     private int currentIndex = -1; // -1이면 현재 맨손 상태
+
+    private bool isFiringHeld;   // 자동화기 연사용 눌림 상태
 
     public WeaponBase CurrentWeapon
     {
@@ -16,6 +24,9 @@ public class WeaponManager : MonoBehaviour
         }
     }
 
+    public int Priority => InputPriority.Player;
+    public bool IsInputActive => isActiveAndEnabled;
+
     private void Start()
     {
         // 시작할 때 모든 무기를 꺼둡니다 (맨손 상태로 시작)
@@ -23,21 +34,49 @@ public class WeaponManager : MonoBehaviour
         {
             weapon.gameObject.SetActive(false);
         }
+
+        if (InputManager.Instance != null) InputManager.Instance.Register(this);
+        else Debug.LogError("[WeaponManager] 씬에 InputManager가 없습니다.", this);
+    }
+
+    private void OnDisable()
+    {
+        isFiringHeld = false;
+        if (InputManager.Instance != null) InputManager.Instance.Unregister(this);
     }
 
     private void Update()
     {
-        if (CurrentWeapon == null) return; // 무기가 없으면 입력 무시
-
-        HandleInput();
+        // 자동화기 연사 — 눌림 상태 동안 매 프레임 시도 (발사 간격은 무기가 관리)
+        if (isFiringHeld && CurrentWeapon != null && CurrentWeapon.gunData.isAutomatic)
+            CurrentWeapon.TryFire();
     }
 
-    private void HandleInput()
+    public bool OnInput(in InputEvent e)
     {
-        bool isFireInput = CurrentWeapon.gunData.isAutomatic ? Input.GetMouseButton(0) : Input.GetMouseButtonDown(0);
+        if (CurrentWeapon == null) return false;   // 맨손이면 하류로 통과
 
-        if (isFireInput) CurrentWeapon.TryFire();
-        if (Input.GetKeyDown(KeyCode.R)) CurrentWeapon.StartReload();
+        switch (e.Id)
+        {
+            case InputActionId.Attack:
+                if (e.Phase == InputActionPhase.Performed)
+                {
+                    isFiringHeld = true;
+                    if (!CurrentWeapon.gunData.isAutomatic) CurrentWeapon.TryFire();   // 단발은 즉시 1회
+                    return true;
+                }
+                if (e.Phase == InputActionPhase.Canceled)
+                {
+                    isFiringHeld = false;
+                }
+                return false;
+
+            case InputActionId.Reload:
+                if (e.Phase != InputActionPhase.Performed) return false;
+                CurrentWeapon.StartReload();
+                return true;
+        }
+        return false;
     }
 
     // ⭐️ [핵심] 인벤토리에서 GunData를 넘겨주면 해당 무기를 찾아 장착하는 함수
@@ -85,6 +124,7 @@ public class WeaponManager : MonoBehaviour
             CurrentWeapon.gameObject.SetActive(false);
         }
         currentIndex = -1;
+        isFiringHeld = false;
         Debug.Log("[무기 해제] 현재 맨손 상태입니다.");
     }
 }

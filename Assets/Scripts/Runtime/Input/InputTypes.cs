@@ -15,9 +15,11 @@ public enum InputActionId
     // Gameplay 맵
     Move, Look, Jump, Attack, Interact,
     Rotate, CycleShape, ToggleBuild, ToggleDemolish,
+    Reload, QuickDrop,
+    Hotbar, HotbarScroll, // Hotbar는 숫자키 1~9 멀티 바인딩 — 슬롯 번호는 control 이름에서 읽는다
     Cancel,               // Gameplay와 UI 맵 양쪽에 같은 이름으로 존재 (활성 맵의 것이 발화)
     // UI 맵
-    Submit, Navigate,
+    Submit, Navigate,     // Interact(E)도 UI 맵에 중복 존재 — 팝업 닫기용
     // Global 맵 (맵 스택과 무관하게 항상 활성)
     ToggleInventory,
 }

@@ -10,9 +10,54 @@ public class DroppedItem : Interactable
     {
         item = itemData;
         amount = count;
-        
+
         // 조준했을 때 화면에 뜰 메시지 세팅
         promptMessage = $"{item.name} x{amount} 줍기";
+    }
+
+    /// <summary>
+    /// 월드 드롭 아이템을 코드로 조립해 스폰한다 — 핫바 Q드롭, 인벤 닫을 때 캐리지 드롭 등 공용.
+    /// (프리팹화 전 임시 팩토리. 프리팹으로 전환하면 이 함수 내부만 바꾸면 된다)
+    /// </summary>
+    public static DroppedItem Spawn(ItemDataSO item, int amount, Vector3 position, Vector3 throwDirection)
+    {
+        // 1. 루트 오브젝트 + 레이어
+        GameObject dropObj = new($"Dropped_{item.name}");
+        dropObj.transform.position = position;
+
+        int layer = LayerMask.NameToLayer("Interactable");
+        if (layer != -1) dropObj.layer = layer;
+        else Debug.LogWarning("[레이어 경고] 'Interactable' 레이어가 없습니다. Tags and Layers 설정 확인!");
+
+        // 2. 물리
+        Rigidbody rb = dropObj.AddComponent<Rigidbody>();
+        rb.useGravity = true;
+        rb.constraints = RigidbodyConstraints.FreezeRotation;
+
+        // 3. 콜라이더 2개 — 바닥 충돌용 고체 + 플레이어 획득 감지용 센서
+        BoxCollider solidCol = dropObj.AddComponent<BoxCollider>();
+        solidCol.size = new Vector3(0.3f, 0.3f, 0.3f);
+        solidCol.isTrigger = false;
+
+        BoxCollider triggerCol = dropObj.AddComponent<BoxCollider>();
+        triggerCol.size = new Vector3(1.5f, 1.5f, 1.5f);
+        triggerCol.isTrigger = true;
+
+        // 4. 비주얼 자식 (둥둥 떠서 도는 아이콘)
+        GameObject visualObj = new("Visual");
+        visualObj.transform.SetParent(dropObj.transform);
+        visualObj.transform.localPosition = Vector3.zero;
+        visualObj.layer = dropObj.layer;
+
+        SpriteRenderer sr = visualObj.AddComponent<SpriteRenderer>();
+        sr.sprite = item.icon;
+        visualObj.AddComponent<ItemRotator>();
+
+        // 5. 데이터 주입 + 전방 투척
+        DroppedItem dropped = dropObj.AddComponent<DroppedItem>();
+        dropped.Setup(item, amount, sr);
+        rb.AddForce(throwDirection * 3.5f, ForceMode.Impulse);
+        return dropped;
     }
 
     // [방법 1] 조준 후 직접 상호작용 키를 눌러서 줍기

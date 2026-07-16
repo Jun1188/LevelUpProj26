@@ -71,3 +71,35 @@
 ### 과도기 상태 (④에서 해소)
 - 플레이어 이동/사격은 여전히 PlayerControls(별개 에셋) — 인벤은 isInventoryOpen 가드로 차단되지만,
   일시정지 중 카메라 회전은 여전히 가능 (기존과 동일)
+
+---
+
+## 2026-07-17 — 파이프라인 3단계 (§6~§7, 최종): 플레이어·무기·핫바 이관 + 에셋 단일화
+
+- **PlayerInput(Send Messages) 제거** — Player.prefab에서 컴포넌트 삭제. 모든 입력이 GameInput 하나로
+  (PlayerControls는 미사용 — 팀 확인 후 삭제 예정)
+- **PlayerController** → Player 리시버(최하위) + 갓 클래스 해체:
+  - Move/Look은 `InputManager.ReadValue<T>()` 폴링 — 비활성 맵 = 0 반환이라 팝업 열림 중
+    이동·시점이 저절로 멎음 → **isInventoryOpen 입력 가드 8곳 전부 삭제**
+  - Jump/Interact/ToggleInventory(열기)만 OnInput 라우팅
+  - 핫바 선택·Q드롭 → **HotbarController**(Inventory/, HudWidget 리시버)로 분리.
+    레거시 `Input.GetKeyDown`/`GetAxisRaw` 청산 (숫자키 1~9는 Hotbar 액션 멀티 바인딩, control 이름에서 슬롯 해석)
+  - 월드 아이템 조립 → **`DroppedItem.Spawn()`** 정적 팩토리로 분리 —
+    PlayerController와 InventoryManager에 **중복돼 있던 조립 코드 2벌 통합** (콜라이더 2개 버전 기준)
+  - 커서/크로스헤어 부수효과 → InventoryPopup의 Enter/Exit (PausePopup과 같은 패턴)
+- **WeaponManager** → Player 리시버: 레거시 `Input.GetMouseButton` 폴링 제거, Attack/Reload 라우팅.
+  자동화기는 눌림 상태(performed~canceled)로 연사 → 건설 모드·팝업 중 사격/재장전이 구조적으로 차단
+- **설계 §6 FSM(IPlayerState)은 보류** — 현재 상호배타 상태가 없어 빈 상태 클래스만 생김(YAGNI).
+  상태 간 입력 규칙이 갈리는 시점에 도입 (§11 기록)
+- **키 겹침 정리**: R(건설 회전 vs 재장전) → 모드 중 BuildController가 Reload 소비.
+  I(ToggleInventory)는 Global 맵 — 열기(Player) / 닫기(InventoryPopup 가로챔) / 건설 모드 중 차단(모드 배타)
+- E키로 인벤 닫기 유지 — UI 맵에 Interact(E) 추가, InventoryPopup이 처리
+- GameInput Gameplay 맵에 Move(WASD)/Look(포인터)/Jump/Interact/Reload/QuickDrop/Hotbar(1~9)/HotbarScroll 추가
+
+### 씬/프리팹 설정
+- Player.prefab: PlayerInput 제거, HotbarController 부착 완료 (이 커밋에 포함 — 추가 작업 불필요)
+- 게임패드 바인딩은 이관하지 않음 (키보드+마우스만) — 필요 시 GameInput에 추가
+
+### 알려진 엣지 (치명적이지 않음)
+- 좌클릭을 누른 채 B로 건설 모드 진입 시, 버튼을 뗄 때까지 자동화기 연사가 유지될 수 있음
+  (Attack canceled가 오면 해제됨 — 새 performed는 모드 중 BuildTool이 소비)

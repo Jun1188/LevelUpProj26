@@ -33,6 +33,9 @@ public class InputManager : MonoBehaviour
     private readonly List<IInputReceiver> _iterBuffer = new();
     private bool _dirty;
 
+    // 폴링용 액션 캐시 (Move/Look 등 연속 입력 — §7-1). 같은 이름이 여러 맵에 있으면 먼저 등록된 것 유지
+    private readonly Dictionary<InputActionId, InputAction> _actions = new();
+
     // 맵 스택 — 최상단 항목의 맵만 활성. 토큰으로 중간 제거를 허용한다.
     private readonly List<(int token, InputActionMap map)> _stack = new();
     private int _nextToken = 1;
@@ -77,7 +80,22 @@ public class InputManager : MonoBehaviour
             action.started   += ctx => Dispatch(new InputEvent(captured, ctx));
             action.performed += ctx => Dispatch(new InputEvent(captured, ctx));
             action.canceled  += ctx => Dispatch(new InputEvent(captured, ctx));
+
+            if (!_actions.ContainsKey(id)) _actions.Add(id, action);
         }
+    }
+
+    // ---------- 연속 입력 폴링 (§7-1) ----------
+
+    /// <summary>
+    /// Move/Look 같은 연속 입력을 매 프레임 읽는다.
+    /// 소속 맵이 스택에서 비활성이면 default(T)를 반환 — 팝업이 열리면 이동/시점이 저절로 멎는다.
+    /// </summary>
+    public T ReadValue<T>(InputActionId id) where T : struct
+    {
+        if (_actions.TryGetValue(id, out var action) && action.enabled)
+            return action.ReadValue<T>();
+        return default;
     }
 
     // ---------- ① 액션 맵 스택 ----------

@@ -179,9 +179,9 @@ public class InventoryManager : MonoBehaviour
     public void CheckWeaponEquip(Inventory playerInventory, int activeSlotIndex = -1)
     {
         // 만약 슬롯 번호가 지정되지 않았다면 플레이어의 현재 활성화된 핫바 인덱스를 가져옴
-        if (activeSlotIndex == -1 && playerController != null)
+        if (activeSlotIndex == -1 && HotbarController.Instance != null)
         {
-            activeSlotIndex = playerController.CurrentHotbarIndex;
+            activeSlotIndex = HotbarController.Instance.CurrentHotbarIndex;
         }
 
         if (playerInventory.slots.Length > activeSlotIndex && activeSlotIndex >= 0)
@@ -211,45 +211,11 @@ public class InventoryManager : MonoBehaviour
 
         if (playerController == null) return;
 
-        // 1. 플레이어 카메라 정면 1.5m 앞, 약간 위쪽을 스폰 위치로 지정
+        // 플레이어 카메라 정면 1.5m 앞, 약간 위쪽에 스폰 후 전방 투척 (조립은 DroppedItem.Spawn이 담당)
         Vector3 spawnPos = playerController.transform.position + playerController.playerCamera.forward * 1.5f + Vector3.up * 0.5f;
+        DroppedItem.Spawn(item, amount, spawnPos, playerController.playerCamera.forward);
 
-        // 2. 빈 게임 오브젝트를 동적 생성하고 이름 부여
-        GameObject dropObj = new($"Dropped_{item.Name}");
-        dropObj.transform.position = spawnPos;
-
-        int interactableLayerIndex = LayerMask.NameToLayer("Interactable");
-        if (interactableLayerIndex != -1) // 프로젝트에 해당 레이어가 정상 존재한다면
-        {
-            dropObj.layer = interactableLayerIndex;
-        }
-        else
-        {
-            Debug.LogWarning("[레이어 경고] 프로젝트에 'Interactable' 레이어가 존재하지 않습니다. Tags and Layers 설정을 확인해 주세요!");
-        }
-        
-        // 3. 물리(Rigidbody) 및 충돌체(BoxCollider) 추가 (바닥에 튕기고 떨어지게 함)
-        Rigidbody rb = dropObj.AddComponent<Rigidbody>();
-        BoxCollider col = dropObj.AddComponent<BoxCollider>();
-        col.size = new Vector3(0.4f, 0.4f, 0.4f); // 적당한 크기의 히트박스
-
-        // 4. 비주얼(마인크래프트처럼 둥둥 떠서 도는 아이콘 구현) 자식 생성
-        GameObject visualObj = new GameObject("Visual");
-        visualObj.transform.SetParent(dropObj.transform);
-        visualObj.transform.localPosition = Vector3.zero;
-
-        SpriteRenderer sr = visualObj.AddComponent<SpriteRenderer>();
-        sr.sprite = item.icon; // 아이템 고유 아이콘 맵핑
-        visualObj.AddComponent<ItemRotator>(); // 빙글빙글 회전 컴포넌트 추가
-
-        // 5. 상호작용 및 데이터 주입
-        DroppedItem droppedScript = dropObj.AddComponent<DroppedItem>();
-        droppedScript.Setup(item, amount, sr);
-
-        // 6. 플레이어가 바라보는 정면 방향으로 툭 던지는 물리적 힘(Impulse) 부여
-        rb.AddForce(playerController.playerCamera.forward * 3.5f, ForceMode.Impulse);
-
-        // 7. 마우스 캐리지 백엔드 및 UI 청소
+        // 마우스 캐리지 백엔드 및 UI 청소
         mouseCarriageItem = null;
         if (mouseCarriageSlot != null) mouseCarriageSlot.ClearSlot();
 
@@ -266,8 +232,8 @@ public class InventoryManager : MonoBehaviour
 
         Inventory playerInv = playerController.playerInventory;
         
-        // 🔥 [원인 2 해결]: 하드코딩(0~8)을 제거하고, 플레이어의 실제 핫바 크기(5)를 유동적으로 가져옵니다.
-        int hotbarSize = playerController != null ? playerController.hotbarSlotCount : 5;
+        // 🔥 [원인 2 해결]: 하드코딩(0~8)을 제거하고, 실제 핫바 크기를 HotbarController에서 유동적으로 가져옵니다.
+        int hotbarSize = HotbarController.Instance != null ? HotbarController.Instance.hotbarSlotCount : 5;
 
         bool isChestOpen = playerController.inventoryUIPanel.activeSelf && playerController.chestInventoryUI.gameObject.activeSelf; 
         Inventory openChestInv = isChestOpen ? playerController.chestInventoryUI.inventory : null;

@@ -178,6 +178,9 @@ public class InventoryManager : MonoBehaviour
     // 슬롯 드롭/클릭 등 기본 인벤토리 조작 시 호출될 때 호환성을 위해 기본값을 플레이어의 현재 핫바로 지정
     public void CheckWeaponEquip(Inventory playerInventory, int activeSlotIndex = -1)
     {
+        // weaponManager를 연결하지 않은 씬(무기 없는 테스트 씬 등)에서는 장착 검사 자체를 건너뜀
+        if (playerController == null || playerController.weaponManager == null) return;
+
         // 만약 슬롯 번호가 지정되지 않았다면 플레이어의 현재 활성화된 핫바 인덱스를 가져옴
         if (activeSlotIndex == -1 && HotbarController.Instance != null)
         {

@@ -94,7 +94,7 @@ public class PlayerController : Entity
 
     public void OnInventory(InputValue value)
     {
-        //if (!value.isPressed) return;
+        if (!value.isPressed) return;   // Send Messages는 키를 뗄 때도 호출됨 — 이중 토글 방지
         ToggleInventory();
     }
 
@@ -173,14 +173,8 @@ public class PlayerController : Entity
         DropActiveHotbarItem();
     }
 
-    public void OnTogglePauseMenu(InputValue value)
-    {
-        if (!value.isPressed) return;
-        if (SystemUIManager.Instance != null)
-        {
-            SystemUIManager.Instance.TogglePauseMenu();
-        }
-    }
+    // ESC(일시정지/창 닫기)는 입력 파이프라인이 소유한다 —
+    // 열기: SystemUIManager(Fallback 리시버), 닫기: 각 UIPopup. (구 OnTogglePauseMenu 제거)
 
     #endregion
 

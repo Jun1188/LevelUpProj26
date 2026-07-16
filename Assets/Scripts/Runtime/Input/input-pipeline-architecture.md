@@ -104,7 +104,8 @@ public static class InputPriority
     public const int PopupBase   = 5000;  // + 열린 순서(depth)
     public const int HudWidget   = 1000;  // 툴바, 퀵바
     public const int BuildTool   = 500;   // 건설 모드 배치/회전
-    public const int Player      = 0;     // 항상 최하위 (fallback)
+    public const int Player      = 0;     // 플레이어 조작
+    public const int Fallback    = -100;  // 아무도 안 받은 입력의 최종 처리 (ESC → 일시정지 열기)
 }
 ```
 
@@ -490,5 +491,8 @@ public class BuildModeController : MonoBehaviour, IInputReceiver
 | — | `InputEvent` 스코프 밖 보관 금지 명시 | `CallbackContext`는 콜백 동안만 유효 |
 | — | `IsPointerOverGameObject`는 Update에서 프레임당 1회 캐싱 | 입력 콜백 안 호출은 Unity 경고 + 어차피 직전 프레임 상태 |
 
-**구현 위치**: `InputTypes.cs` / `InputManager.cs` / `GameInput.inputactions`(Gameplay·Global 맵, PlayerControls 무접촉) / `GridSystem/BuildController.cs`
-**남은 단계**: ③ UIPopup 베이스 + 인벤토리 이관 → ④ PlayerController FSM 이관 (각 담당자 협의 필요)
+| §5 `UIPopup.Close()`가 SetActive(false) | `InventoryPopup.Close()`는 `PlayerController.CloseInventory()`로 위임 | 마우스 캐리지 드롭·상자 패널·커서 복원 등 정리 절차가 그쪽에 있음. 팝업은 파이프라인 어댑터일 뿐 |
+| ESC → 일시정지가 PlayerController 콜백 | **열기 = Fallback 리시버**(SystemUIManager, 아무도 안 받은 Cancel), **닫기 = 각 팝업** | 소유권 단일화. 인벤 열림 중 일시정지가 겹치던 버그 해소. timeScale·커서는 PausePopup의 Enter/Exit에 집중 |
+
+**구현 위치**: `InputTypes.cs` / `InputManager.cs` / `UIPopup.cs` / `GameInput.inputactions`(Gameplay·UI·Global 맵, PlayerControls 무접촉) / `GridSystem/BuildController.cs` / `Inventory/InventoryPopup.cs` / `Manager/PausePopup.cs`
+**남은 단계**: ④ PlayerController FSM 이관 — PlayerInput(Send Messages) 제거, Move/Look은 라우팅 제외(폴링), isInventoryOpen 가드 8곳 삭제, PlayerControls 액션의 GameInput 통합

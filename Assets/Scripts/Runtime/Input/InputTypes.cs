@@ -66,5 +66,6 @@ public static class InputPriority
     public const int PopupBase   = 5000;  // + 열린 순서(depth)
     public const int HudWidget   = 1000;  // 툴바, 퀵바
     public const int BuildTool   = 500;   // 건설 모드 배치/회전
-    public const int Player      = 0;     // 항상 최하위 (fallback)
+    public const int Player      = 0;     // 플레이어 조작
+    public const int Fallback    = -100;  // 아무도 안 받은 입력의 최종 처리 (ESC → 일시정지 열기)
 }

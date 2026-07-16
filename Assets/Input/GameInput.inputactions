@@ -142,6 +142,34 @@
             ]
         },
         {
+            "name": "UI",
+            "id": "4b7bba97-d3fe-40c1-9fd5-e2fe682d7cc7",
+            "actions": [
+                {
+                    "name": "Cancel",
+                    "type": "Button",
+                    "id": "be23b22b-2c46-41e7-835e-950227edd29f",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                }
+            ],
+            "bindings": [
+                {
+                    "name": "",
+                    "id": "f3e9dec4-7116-4f49-8472-c79da3073f3d",
+                    "path": "<Keyboard>/escape",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "Cancel",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                }
+            ]
+        },
+        {
             "name": "Global",
             "id": "34544b72-bc6d-4ee0-841b-9626bb4df4c5",
             "actions": [],

@@ -40,3 +40,34 @@
 - ③ UIPopup 베이스(depth 우선순위) + 인벤토리 이관 — UI 담당 협의
 - ④ PlayerController FSM 이관 + PlayerInput 컴포넌트 제거, Move/Look은 라우팅 제외(폴링) — FPS 담당 협의
 - 이후 PlayerControls.inputactions의 액션들을 GameInput으로 통합, 에셋 단일화
+
+---
+
+## 2026-07-16 — 파이프라인 2단계 (설계 문서 §5): UIPopup + 인벤토리·일시정지 이관
+
+- **조사에서 발견한 기존 버그 3건**:
+  1. `OnInventory`의 Phase 가드가 주석 처리 → 키 누름/뗌 각각 토글 (이중 토글) → 가드 복원
+  2. ESC가 `isInventoryOpen`을 무시 → 인벤 위에 일시정지가 겹치고 커서 상태 꼬임
+  3. 커서 소유권이 PlayerController(`ToggleCursorAndHUD`)와 SystemUIManager(`TogglePauseMenu`) 두 곳에 분산
+- **구현**:
+  - `UIPopup`(Input/) — §5 베이스: depth 우선순위(나중에 연 창이 위), UI 맵 토큰 Push/Pop,
+    Cancel → 최상단만 닫힘, 모달은 미처리 입력도 삼킴
+  - `InventoryPopup`(Inventory/) — inventoryUIPanel에 부착. 열기/닫기 로직은 PlayerController가
+    계속 소유, Close만 `CloseInventory()`(캐리지 드롭·상자 정리 포함)로 위임
+  - `PausePopup`(Manager/) — pausePanel에 부착. **timeScale·커서를 Enter/Exit에 집중** —
+    어떤 경로로 열리든 부수 상태 일관. SystemUIManager.TogglePauseMenu는 SetActive 토글로 단순화
+  - **ESC 소유권을 파이프라인으로 단일화**: 열기 = `InputPriority.Fallback(-100)` 리시버
+    (SystemUIManager — 아무도 소비하지 않은 Cancel = 열린 창 없음), 닫기 = 각 팝업.
+    PlayerController의 `OnTogglePauseMenu` 삭제
+  - GameInput에 **UI 맵**(Cancel=ESC) 추가 — 팝업 열림 중 Gameplay 맵 차단으로
+    "인벤 열고 B키 건설 진입" 같은 신규 충돌도 해소
+- **ESC 흐름 정리**: 건설 모드(BuildController 소비→모드 종료) > 팝업(최상단 닫기) > 아무도 없음(일시정지 열기)
+
+### 씬 설정 (필수)
+- inventoryUIPanel에 `InventoryPopup` 부착 (player 참조 자동 탐색)
+- pausePanel에 `PausePopup` 부착
+- (기존) InputManager + GameInput.inputactions, BuildController
+
+### 과도기 상태 (④에서 해소)
+- 플레이어 이동/사격은 여전히 PlayerControls(별개 에셋) — 인벤은 isInventoryOpen 가드로 차단되지만,
+  일시정지 중 카메라 회전은 여전히 가능 (기존과 동일)

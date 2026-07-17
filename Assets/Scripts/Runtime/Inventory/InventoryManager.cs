@@ -191,21 +191,12 @@ public class InventoryManager : MonoBehaviour
             // 💡 현재 선택된 핫바 슬롯에 아이템이 있고, 그 아이템이 무기가 맞다면 장착!
             if (activeSlot != null && activeSlot.item is WeaponItemSO weaponItem)
             {
-                if (playerController.gun != null)
-                {
-                    playerController.gun.gameObject.SetActive(true);
-                    playerController.gun.SetupGunData(weaponItem.gunData); 
-                    Debug.Log($"[무기 교체 완료] {weaponItem.Name} 장착 (공격력: {weaponItem.gunData.damage})");
-                }
+                playerController.weaponManager.EquipWeapon(weaponItem.gunData);
             }
             // 선택된 슬롯이 비어있거나 무기가 아니라면 (예: 광석이나 연료를 들고 있다면) 총을 숨김
             else
             {
-                if (playerController.gun != null)
-                {
-                    playerController.gun.ClearGunData();
-                    playerController.gun.gameObject.SetActive(false); 
-                }
+                playerController.weaponManager.UnequipWeapon();
             }
         }
     }

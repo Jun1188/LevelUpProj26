@@ -18,7 +18,7 @@ public class PlayerController : Entity
     public float jumpForce = 10f;
 
     [Header("Gun & Combat Settings")]
-    public Gun gun;
+    public WeaponManager weaponManager;
     private bool isFiringPressed = false;
 
     [Header("Recoil Control System")]
@@ -148,24 +148,6 @@ public class PlayerController : Entity
         isJumpPressed = value.isPressed;
     }
 
-    public void OnFire(InputValue value)
-    {
-        if (isInventoryOpen || gun == null || gun.gunData == null) return;
-        
-        isFiringPressed = value.isPressed;
-        gun.SetFiringPressed(isFiringPressed);
-        
-        if (isFiringPressed && !gun.gunData.isAutomatic)
-        {
-            gun.Fire();
-        }
-    }
-
-    public void OnReload(InputValue value)
-    {
-        if (isInventoryOpen || gun == null) return;
-        if (value.isPressed) gun.StartReload();
-    }
 
     public void OnQuickDrop(InputValue value)
     {
@@ -216,18 +198,7 @@ public class PlayerController : Entity
         }
     }
 
-    public void AddRecoil(Vector3 recoilDirection, float verticalRecoil, float horizontalRecoil)
-    {
-        cameraRotationX -= verticalRecoil; 
-        cameraRotationX = Mathf.Clamp(cameraRotationX, -MAX_CAMERA_ROTATION_X, MAX_CAMERA_ROTATION_X);
-        playerCamera.localRotation = Quaternion.Euler(cameraRotationX, 0f, 0f);
 
-        float currentRecoilSpeed = Vector3.Dot(rb.linearVelocity, recoilDirection);
-        if (currentRecoilSpeed < maxRecoilVelocity)
-        {
-            rb.AddForce(recoilDirection * horizontalRecoil, ForceMode.Impulse);
-        }
-    }
 
     #endregion
 
@@ -300,7 +271,7 @@ public class PlayerController : Entity
         moveInput = Vector2.zero;
         mouseInput = Vector2.zero;
         isFiringPressed = false;
-        if (gun != null) gun.SetFiringPressed(false);
+        //if (gun != null) gun.SetFiringPressed(false);
         if (rb != null) rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f); 
     }
 

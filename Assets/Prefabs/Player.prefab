@@ -55,6 +55,11 @@ MonoBehaviour:
   bobAmountX: 0.008
   bobAmountY: 0.006
   bobResetSmooth: 10
+  moveSwayEnabled: 1
+  movePosSwayAmount: {x: 0.02, y: 0.02, z: 0.02}
+  moveRotSwayAmount: {x: 3, y: 0, z: 2}
+  moveSwaySmooth: 6
+  maxReferenceSpeed: 5
   inputSmoothing: 0.15
 --- !u!1 &3917618134708522169
 GameObject:
@@ -220,12 +225,11 @@ MonoBehaviour:
   m_GameObject: {fileID: 6369730769915939971}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2b5c90298fd24d448b280bcd744f7c50, type: 3}
+  m_Script: {fileID: 11500000, guid: 83d0fd681cf63984c96cde90fb48bad7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Gun
-  gunData: {fileID: 11400000, guid: 845b0795164612a428f47c8252826ccd, type: 2}
-  playerController: {fileID: 6442160254612740854}
-  muzzlePoint: {fileID: 5355281485241008794}
+  gunData: {fileID: 0}
+  muzzlePoint: {fileID: 0}
 --- !u!1 &7498640336194902235
 GameObject:
   m_ObjectHideFlags: 0
@@ -331,7 +335,7 @@ MonoBehaviour:
   mouseSensitivity: 1
   MAX_CAMERA_ROTATION_X: 90
   jumpForce: 10
-  gun: {fileID: 2802793863481005645}
+  weaponManager: {fileID: 0}
   maxRecoilVelocity: 12
   recoilDecaySpeed: 20
   playerInventory: {fileID: 1341143159957256118}
@@ -339,9 +343,7 @@ MonoBehaviour:
   inventoryUI: {fileID: 0}
   chestInventoryUI: {fileID: 0}
   crosshairUI: {fileID: 0}
-  promptText: {fileID: 0}
   debugTestItem: {fileID: 11400000, guid: e92829eb1699dab47a38ddd2df1e22ad, type: 2}
-  hotbarSlotCount: 9
 --- !u!114 &1341143159957256118
 MonoBehaviour:
   m_ObjectHideFlags: 0

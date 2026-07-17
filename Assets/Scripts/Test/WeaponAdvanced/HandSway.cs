@@ -1,37 +1,15 @@
 using UnityEngine;
 
 /// <summary>
-/// handPosition GameObject에 부착하는 Weapon Sway 컴포넌트.
+/// WeaponMotionManager에 의해 관리되는 Weapon Sway 모듈.
+/// IWeaponModule 인터페이스를 상속받아, transform을 직접 조작하지 않고
+/// 계산된 순수 Offset 값만 매니저에게 전달합니다.
 ///
 /// ■ 동작 방식
-///   Input.GetAxisRaw로 raw 마우스 델타를 읽어
-///   frame-independent EMA(Exponential Moving Average)로 직접 smoothing합니다.
-///   → Input.GetAxis의 Unity 내부 smoothing을 우회하므로
-///     저주사율 마우스/저프레임 환경에서도 feel이 일정합니다.
-///
-/// ■ Position Sway
-///   마우스 이동 반대 방향으로 localPosition 이동 → 관성 느낌
-///
-/// ■ Rotation Sway
-///   Tilt  (Z축) : 마우스X에 비례 → 손목 기울기
-///   Pitch (X축) : 마우스Y에 비례 → 앞뒤 기울기
-///
-/// ■ Movement Bob
-///   CharacterController 수평 속도로 이동 감지 → sinusoidal bob
-///   bob 오프셋은 sway targetPos에 합산됩니다.
-///   (별도 += 시 Lerp에 의해 다음 프레임 즉시 상쇄되는 문제 방지)
-///
-/// ■ Movement Sway (새로 추가됨)
-///   캐릭터의 로컬 이동 속도(CharacterController.velocity)를 바탕으로 
-///   무기가 이동 반대 방향으로 밀리거나 기울어지는 관성(Inertia)을 구현합니다.
-///
-/// ■ 설치
-///   handPosition GameObject에 이 컴포넌트를 Add Component.
-///   CharacterController는 부모 계층에서 자동 탐색합니다.
-///   handPosition의 localPosition/Rotation을 씬에서 원하는 위치로 맞춘 뒤
-///   Context Menu → "Reset Sway Origin" 으로 기준점을 저장하세요.
+///   Input.GetAxisRaw로 raw 마우스 델타를 읽어 EMA(Exponential Moving Average)로 smoothing합니다.
+///   Position Sway, Rotation Sway, Movement Bob, Movement Sway, Landing Bob 로직이 포함됩니다.
 /// </summary>
-public class HandSway : MonoBehaviour
+public class HandSway : MonoBehaviour, IWeaponMotionModule
 {
     // ─── Position Sway ───────────────────────────────────────────────
     [Header("Position Sway (Mouse)")]
@@ -65,7 +43,7 @@ public class HandSway : MonoBehaviour
     [Tooltip("정지 시 bobTimer를 0으로 감쇠시키는 속도. 권장: 8~14")]
     public float bobResetSmooth = 10f;
 
-    // ─── Movement Sway (추가됨) ────────────────────────────────────────
+    // ─── Movement Sway (Inertia) ──────────────────────────────────────
     [Header("Movement Sway (Inertia)")]
     public bool moveSwayEnabled = true;
 
@@ -83,26 +61,23 @@ public class HandSway : MonoBehaviour
 
     // ─── Input Smoothing ──────────────────────────────────────────────
     [Header("Mouse Input Smoothing")]
-    [Tooltip(
-        "EMA 계수 (1/60s 프레임 기준).\n" +
-        "작을수록 부드럽고 느린 반응 / 클수록 즉각적.\n" +
-        "내부적으로 frame-independent 보정이 적용되므로\n" +
-        "프레임률과 무관하게 동일한 feel을 유지합니다.\n" +
-        "권장: 0.10~0.20"
-    )]
+    [Tooltip("EMA 계수 (1/60s 프레임 기준). 작을수록 부드럽고 느림. 권장: 0.10~0.20")]
     [Range(0.01f, 1f)]
     public float inputSmoothing = 0.15f;
 
+    // ─── IWeaponModule 인터페이스 구현부 (매니저가 가져갈 결과값) ────────────
+    public Vector3 PositionOffset { get; private set; }
+    public Quaternion RotationOffset { get; private set; } = Quaternion.identity;
+
     // ─── 내부 상태 ────────────────────────────────────────────────────
-    private Vector3 _originPos;
-    private Quaternion _originRot;
+    private Vector2 _smoothedDelta;
+    private float _bobTimer;
 
-    private Vector2 _smoothedDelta;   // EMA 적용된 마우스 델타
-    private float _bobTimer;        // sinusoidal 누적 시간
-
-    // 이동 관성을 위한 내부 상태 변수 (추가됨)
     private Vector3 _smoothedMovePos;
     private Quaternion _smoothedMoveRot = Quaternion.identity;
+
+    private bool _wasGrounded = true;
+    private float _fallDistance = 0f;
 
     private Rigidbody _rb;
 
@@ -110,21 +85,20 @@ public class HandSway : MonoBehaviour
 
     private void Awake()
     {
-        _originPos = transform.localPosition;
-        _originRot = transform.localRotation;
         _rb = GetComponentInParent<Rigidbody>();
     }
 
     private void Update()
     {
         SmoothMouseInput();
-        CalculateMovementSway(); // 캐릭터 이동 관성 연산 (추가됨)
+        CalculateMovementSway();
 
-        // bob 오프셋을 먼저 계산해 sway target에 합산
         Vector3 bobOffset = ComputeBobOffset();
+        ApplyLandingBob();
 
-        ApplyPositionSway(bobOffset);
-        ApplyRotationSway();
+        // ★ 변경점: 직접 Transform을 조작하지 않고 Offset 프로퍼티만 갱신
+        CalculatePositionOffset(bobOffset);
+        CalculateRotationOffset();
     }
 
     // ─── 마우스 입력 EMA ──────────────────────────────────────────────
@@ -137,7 +111,7 @@ public class HandSway : MonoBehaviour
         _smoothedDelta = Vector2.Lerp(_smoothedDelta, new Vector2(rawX, rawY), t);
     }
 
-    // ─── 캐릭터 이동 관성 연산 (새로 추가됨) ──────────────────────────────────
+    // ─── 캐릭터 이동 관성 연산 ──────────────────────────────────────────
     private void CalculateMovementSway()
     {
         if (!moveSwayEnabled || _rb == null)
@@ -147,31 +121,26 @@ public class HandSway : MonoBehaviour
             return;
         }
 
-        // 월드 속도를 카메라(부모) 기준의 로컬 속도로 변환하여 앞/뒤/좌/우 판단
         Transform refTransform = transform.parent != null ? transform.parent : transform;
         Vector3 localVelocity = refTransform.InverseTransformDirection(_rb.linearVelocity);
 
-        // 최대 속도 기준으로 -1 ~ 1 사이의 값으로 정규화
         Vector3 moveInput = localVelocity / maxReferenceSpeed;
         moveInput.x = Mathf.Clamp(moveInput.x, -1f, 1f);
         moveInput.y = Mathf.Clamp(moveInput.y, -1f, 1f);
         moveInput.z = Mathf.Clamp(moveInput.z, -1f, 1f);
 
-        // Position 관성 (이동 방향의 반대로 무기가 밀림)
         Vector3 targetMovePos = new Vector3(
             -moveInput.x * movePosSwayAmount.x,
             -moveInput.y * movePosSwayAmount.y,
             -moveInput.z * movePosSwayAmount.z
         );
 
-        // Rotation 관성
         Vector3 targetMoveRotEuler = new Vector3(
-            moveInput.z * moveRotSwayAmount.x,  // 전진 시 무기가 살짝 아래로(Pitch) 숙여짐
-            -moveInput.x * moveRotSwayAmount.y, // 우측 이동 시 좌측으로(Yaw) 틀어짐
-            -moveInput.x * moveRotSwayAmount.z  // 우측 이동 시 좌측으로(Roll) 기울어짐
+            moveInput.z * moveRotSwayAmount.x,
+            -moveInput.x * moveRotSwayAmount.y,
+            -moveInput.x * moveRotSwayAmount.z
         );
 
-        // 스무딩 처리
         _smoothedMovePos = Vector3.Lerp(_smoothedMovePos, targetMovePos, Time.deltaTime * moveSwaySmooth);
         _smoothedMoveRot = Quaternion.Slerp(_smoothedMoveRot, Quaternion.Euler(targetMoveRotEuler), Time.deltaTime * moveSwaySmooth);
     }
@@ -200,48 +169,60 @@ public class HandSway : MonoBehaviour
         return new Vector3(bx, by, 0f);
     }
 
-    // ─── Position Sway ───────────────────────────────────────────────
-    private void ApplyPositionSway(Vector3 bobOffset)
+    // ─── 착지 반동 연산 ───────────────────────────────────────────────
+    private void ApplyLandingBob()
     {
-        // 마우스 오른쪽 → 손이 왼쪽으로 (음수) → 관성 느낌
+        if (_rb == null) return;
+
+        bool isGrounded = Physics.Raycast(_rb.transform.position, Vector3.down, 1.2f);
+
+        if (!isGrounded)
+        {
+            _fallDistance += Time.deltaTime;
+        }
+        else if (!_wasGrounded && isGrounded)
+        {
+            if (_fallDistance > 0.2f)
+            {
+                _smoothedMovePos += new Vector3(0f, -0.15f, 0f);
+                _smoothedMoveRot *= Quaternion.Euler(15f, 0f, 0f);
+            }
+            _fallDistance = 0f;
+        }
+
+        _wasGrounded = isGrounded;
+    }
+
+    // ─── ★ 최종 Position Offset 산출 ★ ───────────────────────────────
+    private void CalculatePositionOffset(Vector3 bobOffset)
+    {
         float swayX = Mathf.Clamp(-_smoothedDelta.x * posSwayAmount, -posSwayAmount, posSwayAmount);
         float swayY = Mathf.Clamp(-_smoothedDelta.y * posSwayAmount, -posSwayAmount, posSwayAmount);
 
-        // 원본 로직에 새로 추가된 _smoothedMovePos(이동 관성) 합산
-        Vector3 targetPos = _originPos + new Vector3(swayX, swayY, 0f) + bobOffset + _smoothedMovePos;
+        // OriginPos를 더하지 않고, (0,0,0)을 기준으로 한 순수 Offset 타겟값만 산출합니다.
+        Vector3 targetOffset = new Vector3(swayX, swayY, 0f) + bobOffset + _smoothedMovePos;
 
-        transform.localPosition = Vector3.Lerp(
-            transform.localPosition,
-            targetPos,
+        PositionOffset = Vector3.Lerp(
+            PositionOffset,
+            targetOffset,
             Time.deltaTime * posSwaySmooth
         );
     }
 
-    // ─── Rotation Sway ───────────────────────────────────────────────
-    private void ApplyRotationSway()
+    // ─── ★ 최종 Rotation Offset 산출 ★ ───────────────────────────────
+    private void CalculateRotationOffset()
     {
-        // 마우스 오른쪽 → Z+ 기울기 (손목이 오른쪽으로 기울어짐)
         float tiltZ = Mathf.Clamp(_smoothedDelta.x * rotSwayAmount, -rotSwayAmount, rotSwayAmount);
-        // 마우스 위 → 손이 약간 위로 젖혀지는 느낌
         float pitchX = Mathf.Clamp(-_smoothedDelta.y * rotSwayAmount, -rotSwayAmount, rotSwayAmount);
 
-        // 원본 로직에 새로 추가된 _smoothedMoveRot(이동 관성) 곱셈 적용
-        Quaternion targetRot = _originRot * Quaternion.Euler(pitchX, 0f, -tiltZ) * _smoothedMoveRot;
+        // OriginRot을 곱하지 않고, 순수 회전 Offset 타겟값만 산출합니다.
+        Quaternion targetOffset = Quaternion.Euler(pitchX, 0f, -tiltZ) * _smoothedMoveRot;
 
-        transform.localRotation = Quaternion.Slerp(
-            transform.localRotation,
-            targetRot,
+        RotationOffset = Quaternion.Slerp(
+            RotationOffset,
+            targetOffset,
             Time.deltaTime * rotSwaySmooth
         );
-    }
-
-    // ─── Editor 유틸 ─────────────────────────────────────────────────
-    [ContextMenu("Reset Sway Origin to Current Transform")]
-    public void ResetOrigin()
-    {
-        _originPos = transform.localPosition;
-        _originRot = transform.localRotation;
-        Debug.Log($"[HandSway] Origin reset → pos:{_originPos}  rot:{_originRot.eulerAngles}");
     }
 
 #if UNITY_EDITOR
@@ -253,8 +234,8 @@ public class HandSway : MonoBehaviour
         posSwaySmooth = Mathf.Max(0.1f, posSwaySmooth);
         rotSwaySmooth = Mathf.Max(0.1f, rotSwaySmooth);
         bobResetSmooth = Mathf.Max(0.1f, bobResetSmooth);
-        moveSwaySmooth = Mathf.Max(0.1f, moveSwaySmooth); // (추가됨)
-        maxReferenceSpeed = Mathf.Max(0.1f, maxReferenceSpeed); // (추가됨)
+        moveSwaySmooth = Mathf.Max(0.1f, moveSwaySmooth);
+        maxReferenceSpeed = Mathf.Max(0.1f, maxReferenceSpeed);
     }
 #endif
 }

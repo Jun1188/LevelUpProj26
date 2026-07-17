@@ -11,23 +11,22 @@ public class ProjectileGun : WeaponBase
         InitializePool(); // 이 총기만의 전용 오브젝트 풀 생성
     }
 
-    // WeaponBase의 ExecuteFire를 강제로 구현
     protected override void ExecuteFire()
     {
         Vector3 spawnPos = muzzlePoint != null ? muzzlePoint.position : transform.position;
-        Quaternion spawnRot = muzzlePoint != null ? muzzlePoint.rotation : transform.rotation;
 
-        // 전용 풀에서 총알 스폰
+        // ⭐️ 탄퍼짐 적용 (정면 방향에 랜덤한 구형 오차를 더함)
+        Vector3 fireDirection = (muzzlePoint != null ? muzzlePoint.forward : transform.forward);
+        fireDirection += Random.insideUnitSphere * (currentSpread / 100f); // 수치 보정
+
+        Quaternion spawnRot = Quaternion.LookRotation(fireDirection);
+
         GameObject bullet = bulletPool.Get();
         bullet.transform.position = spawnPos;
         bullet.transform.rotation = spawnRot;
-
-        Bullet bulletScript = bullet.GetComponent<Bullet>();
-        if (bulletScript != null)
-        {
-            bulletScript.Setup(gunData.bulletSpeed, 3f);
-        }
+        bullet.GetComponent<Bullet>()?.Setup(gunData.bulletSpeed, 3f);
     }
+
 
     #region Object Pooling
     private void InitializePool()

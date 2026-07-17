@@ -76,6 +76,9 @@ public class BuildController : MonoBehaviour, IInputReceiver
             case InputActionId.Reload:
                 return true;   // R키가 Rotate와 겹침 — 모드 중 재장전으로 새지 않게 소비
 
+            case InputActionId.Aim:
+                return true;   // 우클릭이 BuildCancel과 겹침 — 모드 중 조준으로 새지 않게 소비
+
             case InputActionId.ToggleInventory:
                 return true;   // Global 맵이라 모드 중에도 발화 — 건설/인벤 모드 배타 유지 (나가려면 ESC)
         }

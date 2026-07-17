@@ -1,9 +1,13 @@
-using UnityEngine;
 using System;
+using UnityEngine;
 
-public class HealthComponent : MonoBehaviour
+// 체력/사망 상태 — 순수 C# 클래스. 소유 Entity의 인스펙터에 인라인으로 직렬화된다.
+// 사망 후 오브젝트 처리(비활성화/파괴)는 Entity.HandleDeath가 담당한다.
+[Serializable]
+public class HealthComponent
 {
     [SerializeField] private float maxHealth = 100f;
+
     private float currentHealth;
 
     public bool IsDead { get; private set; }
@@ -13,11 +17,6 @@ public class HealthComponent : MonoBehaviour
 
     public float MaxHealth => maxHealth;
     public float CurrentHealth => currentHealth;
-
-    private void Awake()
-    {
-        Initialize();
-    }
 
     public void Initialize()
     {
@@ -47,17 +46,18 @@ public class HealthComponent : MonoBehaviour
         OnHealthChanged?.Invoke(currentHealth, maxHealth);
     }
 
+    // 즉시 사망 — Entity.Die()가 호출 (강제 처치/치트/스크립트 연출용)
+    public void Kill()
+    {
+        if (IsDead) return;
+        currentHealth = 0;
+        OnHealthChanged?.Invoke(currentHealth, maxHealth);
+        Die();
+    }
+
     private void Die()
     {
         IsDead = true;
         OnDeath?.Invoke();
-        
-        // 2초 지연 후 게임 오브젝트 비활성화 (기존 로직 유지)
-        Invoke(nameof(DeactivateEntity), 2f);
-    }
-
-    private void DeactivateEntity()
-    {
-        gameObject.SetActive(false);
     }
 }

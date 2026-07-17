@@ -30,11 +30,6 @@ public class PlayerController : Entity, IInputReceiver
     [Header("Gun & Combat Settings")]
     public WeaponManager weaponManager;
 
-    [Header("Recoil Control System")]
-    public float maxRecoilVelocity = 12f;
-    public float recoilDecaySpeed = 20f;
-    private Vector3 activeRecoilVelocity;
-
     [Header("Inventory Backend")]
     public Inventory playerInventory;
     private bool isInventoryOpen = false;
@@ -168,18 +163,7 @@ public class PlayerController : Entity, IInputReceiver
         }
     }
 
-    public void AddRecoil(Vector3 recoilDirection, float verticalRecoil, float horizontalRecoil)
-    {
-        cameraRotationX -= verticalRecoil;
-        cameraRotationX = Mathf.Clamp(cameraRotationX, -MAX_CAMERA_ROTATION_X, MAX_CAMERA_ROTATION_X);
-        playerCamera.localRotation = Quaternion.Euler(cameraRotationX, 0f, 0f);
-
-        float currentRecoilSpeed = Vector3.Dot(rb.linearVelocity, recoilDirection);
-        if (currentRecoilSpeed < maxRecoilVelocity)
-        {
-            rb.AddForce(recoilDirection * horizontalRecoil, ForceMode.Impulse);
-        }
-    }
+    // AddRecoil 삭제 — 반동은 ProceduralRecoil/WeaponKickback 모듈로 대체됨 (Entity 개편 병합)
 
     #endregion
 

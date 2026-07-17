@@ -103,3 +103,20 @@
 ### 알려진 엣지 (치명적이지 않음)
 - 좌클릭을 누른 채 B로 건설 모드 진입 시, 버튼을 뗄 때까지 자동화기 연사가 유지될 수 있음
   (Attack canceled가 오면 해제됨 — 새 performed는 모드 중 BuildTool이 소비)
+
+---
+
+## 2026-07-18 — Entity 개편(main #32) 병합 + WeaponController 분리
+
+- **팀원 Entity 개편 수용**: Entity에 HealthComponent 내장(플레이어도 HP/사망 획득),
+  IInteractable 삭제(우리 쪽 참조 0), BuildingView → Entities.Building 상속(공장 건물 HP 통합)
+- **PlayerController**: AddRecoil 삭제 추종 (반동은 ProceduralRecoil/WeaponKickback 모듈로 대체됨)
+- **WeaponManager**(팀원, Test/WeaponAdvanced로 이동): 팀원 버전 채택하되 **Update의 레거시
+  `Input.GetMouseButton` 폴링 블록만 삭제** — 장착/교체/모듈 소유는 그대로. 수정 최소화 원칙
+- **WeaponController 신설**(Runtime/FPS, Player 리시버): 사격 입력 어댑터.
+  선입력 버퍼(0.15초)·자동 연사·**Aim(ADS)**·재장전을 라우팅으로 수신 —
+  BuildController↔PlacementSystem과 같은 "팀원 시스템=로직, 어댑터=입력" 경계
+- **Aim 액션 신설**(우클릭): BuildCancel과 같은 키지만 컨텍스트 분리 —
+  건설 모드 중에는 BuildTool이 Aim도 소비 (전투 입력 차단 규칙)
+- Player.prefab: 팀원의 새 무기 계층(Rifle/Pistol+모듈) 기반으로 재조립 —
+  PlayerInput 제거·HotbarController 유지, Weapon_Holder에 WeaponController 부착

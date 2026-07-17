@@ -33,6 +33,9 @@ namespace Entities
         private static readonly List<Building> all = new List<Building>();
         public static IReadOnlyList<Building> All => all;
 
+        // 코어 파괴 = 게임오버 조건. BattleManager가 구독한다.
+        public static event System.Action<Building> CoreDestroyed;
+
         protected override void Awake()
         {
             base.Awake();
@@ -66,9 +69,11 @@ namespace Entities
             }
         }
 
-        // HP 0 → 몬스터의 2초 사망 연출 없이 즉시 소멸
+        // HP 0 → 몬스터의 사망 연출 지연 없이 즉시 소멸
         protected override void HandleDeath()
         {
+            if (isCore) CoreDestroyed?.Invoke(this); // 소멸 전에 게임오버 통지
+
             if (Sim != null && !Sim.IsRemoved)
             {
                 PlacementBridge.Remove(Sim); // 심 제거 + GridIndex 해제 + 뷰(GO) 파괴 일괄 처리

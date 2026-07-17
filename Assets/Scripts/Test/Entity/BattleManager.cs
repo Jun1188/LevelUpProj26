@@ -34,8 +34,15 @@ public class BattleManager : MonoBehaviour
             flowFieldManager = FlowFieldManager.Instance != null ? FlowFieldManager.Instance : FindFirstObjectByType<FlowFieldManager>();
     }
 
+    // 코어 파괴로 게임이 끝났는지 여부. UI/연출은 GameOver 이벤트를 구독하면 된다.
+    public bool IsGameOver { get; private set; }
+    public event System.Action GameOver;
+
     private void Start()
     {
+        EnsurePlayerEntity();
+        Entities.Building.CoreDestroyed += OnCoreDestroyed;
+
         spawnManager.Initialize(gridManager, transform);
 
         if (TimeManager.Instance != null)
@@ -54,11 +61,36 @@ public class BattleManager : MonoBehaviour
     private void OnDestroy()
     {
         if (Instance == this) Instance = null;
+        Entities.Building.CoreDestroyed -= OnCoreDestroyed;
         if (TimeManager.Instance != null)
         {
             TimeManager.Instance.Cycle.NightStarted -= OnNightStarted;
             TimeManager.Instance.Cycle.DayStarted -= OnDayStarted;
         }
+    }
+
+    // ── 외부 시스템 통합 ──
+    // MainScene 등 기존 씬의 플레이어(PlayerController)에는 Player 엔티티가 없다.
+    // 씬 에셋을 수정하지 않고 런타임에 Player 컴포넌트를 자동 부착해 몬스터 감지/피격을 연결한다.
+    private void EnsurePlayerEntity()
+    {
+        var controller = FindFirstObjectByType<PlayerController>();
+        if (controller == null) return;
+        if (controller.GetComponent<Player>() != null) return;
+
+        var player = controller.gameObject.AddComponent<Player>();
+        // FPS 플레이어는 카메라/UI가 하위에 있어 Destroy 대신 비활성화로 사망 처리
+        player.SetDeathBehavior(destroy: false, delay: 2f);
+        Debug.Log("[BattleManager] PlayerController에 Player 엔티티를 런타임 부착했습니다.");
+    }
+
+    private void OnCoreDestroyed(Entities.Building core)
+    {
+        if (IsGameOver) return;
+        IsGameOver = true;
+        spawnManager.SetSpawningEnabled(false);
+        Debug.Log("====== 💀 게임오버 — 코어가 파괴되었습니다! ======");
+        GameOver?.Invoke();
     }
 
     private void Update()

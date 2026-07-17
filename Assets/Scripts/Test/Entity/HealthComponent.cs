@@ -46,6 +46,15 @@ public class HealthComponent
         OnHealthChanged?.Invoke(currentHealth, maxHealth);
     }
 
+    // 즉시 사망 — Entity.Die()가 호출 (강제 처치/치트/스크립트 연출용)
+    public void Kill()
+    {
+        if (IsDead) return;
+        currentHealth = 0;
+        OnHealthChanged?.Invoke(currentHealth, maxHealth);
+        Die();
+    }
+
     private void Die()
     {
         IsDead = true;

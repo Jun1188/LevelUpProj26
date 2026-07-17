@@ -11,7 +11,11 @@ public class Player : Entity
 {
     [SerializeField] private SensorComponent sensor = new SensorComponent();
 
+    [Tooltip("근접 자동 반격 — 사거리 안의 몬스터를 쿨다운마다 공격한다. 원거리는 총기(Bullet 피격)가 담당.")]
+    [SerializeField] private CombatComponent combat = new CombatComponent();
+
     public override SensorComponent Sensor => sensor;
+    public override CombatComponent Combat => combat;
 
     private readonly List<Entity> scanBuffer = new List<Entity>();
     private readonly HashSet<Monster> detected = new HashSet<Monster>();
@@ -28,6 +32,32 @@ public class Player : Entity
         base.Update();
         if (IsDead) return;
         ScanForMonsters();
+        MeleeAttack();
+    }
+
+    // 사거리 안까지 접근한 몬스터에 대한 근접 자동 반격
+    private void MeleeAttack()
+    {
+        if (!combat.CanAttack()) return;
+        Entity target = sensor.GetClosestTarget(combat.AttackRange);
+        if (target.IsValidTarget())
+        {
+            combat.TryAttack(target);
+        }
+    }
+
+    // ── 총기 시스템 통합 (get 전용 조회) ──
+    // 현재 장착 무기의 GunData.damage를 읽는다. Monster의 Bullet 피격 처리가 사용.
+    private static WeaponManager cachedWeaponManager;
+
+    public static float GetCurrentBulletDamage()
+    {
+        if (cachedWeaponManager == null)
+            cachedWeaponManager = FindFirstObjectByType<WeaponManager>();
+
+        var weapon = cachedWeaponManager != null ? cachedWeaponManager.CurrentWeapon : null;
+        if (weapon != null && weapon.gunData != null) return weapon.gunData.damage;
+        return 20f; // 무기 시스템이 없는 테스트 씬용 기본값
     }
 
     private void ScanForMonsters()

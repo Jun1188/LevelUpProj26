@@ -10,15 +10,11 @@ public class EntityAnimator : MonoBehaviour
     private readonly int attackHash = Animator.StringToHash("Attack");
     private readonly int dieHash = Animator.StringToHash("Die");
 
-    private MovementComponent movementComponent;
-
     private void Awake()
     {
         animator = GetComponent<Animator>();
         if (entity == null)
             entity = GetComponentInParent<Entity>();
-            
-        movementComponent = entity != null ? entity.GetComponent<MovementComponent>() : GetComponentInParent<MovementComponent>();
     }
 
     private void OnEnable()
@@ -43,8 +39,8 @@ public class EntityAnimator : MonoBehaviour
     {
         if (entity == null || entity.IsDead) return;
 
-        // 이동 관련 상태일 경우에 걷기/뛰기 애니메이션 적용
-        bool isMoving = movementComponent != null && movementComponent.IsMoving;
+        // 이동 컴포넌트(순수 C#)는 Entity가 노출한다 — 없는 엔티티(건물 등)는 항상 false
+        bool isMoving = entity.Movement != null && entity.Movement.IsMoving;
         animator.SetBool(isMovingHash, isMoving);
     }
 

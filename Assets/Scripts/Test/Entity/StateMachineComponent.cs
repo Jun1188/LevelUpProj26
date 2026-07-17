@@ -1,21 +1,22 @@
 using UnityEngine;
 
-public class StateMachineComponent : MonoBehaviour
+// 상태머신 — 순수 C# 클래스. 소유 Entity가 매 프레임 Tick()으로 구동한다.
+// 각 상태가 소유 Entity의 컴포넌트(순수 C#)에 접근하는 통로 역할을 겸한다.
+public class StateMachineComponent
 {
-    private IEntityState currentState;
+    public Entity Owner { get; }
 
+    public Transform Transform => Owner.transform;
+    public MovementComponent Movement => Owner.Movement;
+    public CombatComponent Combat => Owner.Combat;
+    public SensorComponent Sensor => Owner.Sensor;
+
+    private IEntityState currentState;
     public IEntityState CurrentState => currentState;
 
-    // 각 상태가 Enter마다 GetComponent를 반복하지 않도록 1회 캐싱
-    public MovementComponent Movement { get; private set; }
-    public CombatComponent Combat { get; private set; }
-    public SensorComponent Sensor { get; private set; }
-
-    private void Awake()
+    public StateMachineComponent(Entity owner)
     {
-        Movement = GetComponent<MovementComponent>();
-        Combat = GetComponent<CombatComponent>();
-        Sensor = GetComponent<SensorComponent>();
+        Owner = owner;
     }
 
     public void SetState(IEntityState newState)
@@ -25,7 +26,7 @@ public class StateMachineComponent : MonoBehaviour
         currentState?.Enter(this);
     }
 
-    private void Update()
+    public void Tick()
     {
         currentState?.Update(this);
     }

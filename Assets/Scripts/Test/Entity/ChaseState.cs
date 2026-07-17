@@ -1,15 +1,19 @@
 using UnityEngine;
 using System.Collections.Generic;
 
+// 런타임 A* 추적 — 플레이어 센서에 감지된 몬스터만 사용하는 무거운 길찾기.
+// 평상시 이동은 FlowFieldState가 담당한다. 추적 포기는 거리 판정 대신
+// Player의 해제 콜백(Monster.OnLostByPlayer)이 담당한다.
 public class ChaseState : IEntityState
 {
-    private IInteractable target;
+    private Entity target;
     private float pathUpdateInterval = 0.5f;
     private float lastPathUpdateTime;
-    private float maxChaseRange = float.MaxValue;
     private StateMachineComponent owner;
 
-    public ChaseState(IInteractable target)
+    public Entity Target => target;
+
+    public ChaseState(Entity target)
     {
         this.target = target;
     }
@@ -17,10 +21,6 @@ public class ChaseState : IEntityState
     public void Enter(StateMachineComponent stateMachine)
     {
         owner = stateMachine;
-        if (stateMachine.Sensor != null)
-        {
-            maxChaseRange = stateMachine.Sensor.DetectionRange * 1.5f;
-        }
         if (stateMachine.Movement != null)
         {
             stateMachine.Movement.OnPathBlocked += HandlePathBlocked;
@@ -36,19 +36,11 @@ public class ChaseState : IEntityState
             return;
         }
 
-        float distance = target.DistanceTo(stateMachine.transform.position);
+        float distance = target.DistanceTo(stateMachine.Transform.position);
 
         if (stateMachine.Combat != null && distance <= stateMachine.Combat.AttackRange)
         {
             stateMachine.SetState(new AttackState(target));
-            return;
-        }
-
-        // 감지 범위를 한참 벗어나면 추적 포기
-        // 단, 길을 막는 건물 타겟은 감지 범위 밖에 있을 수 있으므로 거리로 포기하지 않는다
-        if (!(target is BuildingDamageable) && distance > maxChaseRange)
-        {
-            stateMachine.SetState(new IdleState());
             return;
         }
 
@@ -77,7 +69,7 @@ public class ChaseState : IEntityState
         if (!target.IsValidTarget()) return;
 
         lastPathUpdateTime = Time.time;
-        List<Node> path = PathFinder.FindPath(stateMachine.transform.position, target.GetPosition());
+        List<Node> path = PathFinder.FindPath(stateMachine.Transform.position, target.GetPosition());
 
         if (path != null)
         {
@@ -94,19 +86,19 @@ public class ChaseState : IEntityState
             return;
         }
 
-        // 길이 완전히 막힘 → 경로를 막는 건물을 새 타겟으로 삼아 부순다
-        // Building은 POCO이므로 그 뷰 GameObject에 피격 컴포넌트를 지연 부착해 타겟으로 쓴다
-        Building blocker = PathFinder.FindBlockingBuilding(stateMachine.transform.position, target.GetPosition());
-        BuildingDamageable damageable = BuildingDamageable.GetOrAttach(blocker);
+        // 길이 완전히 막힘 → 경로를 막는 건물을 새 타겟으로 삼아 부순다.
+        // 심(POCO) 건물을 뷰 GameObject의 Building 엔티티로 변환해 타겟으로 쓴다
+        Building blocker = PathFinder.FindBlockingBuilding(stateMachine.Transform.position, target.GetPosition());
+        Entities.Building buildingEntity = Entities.Building.GetOrAttach(blocker);
 
-        if (damageable != null && !ReferenceEquals(damageable, target))
+        if (buildingEntity != null && !ReferenceEquals(buildingEntity, target))
         {
-            stateMachine.SetState(new ChaseState(damageable));
+            stateMachine.SetState(new ChaseState(buildingEntity));
             return;
         }
 
         // 부술 건물조차 없으면(지형 막힘 등) Chase에 머물며 pathUpdateInterval 주기로 재시도.
-        // Idle로 보내면 Idle이 다음 프레임 바로 재추적을 시작해 매 프레임 A*가 도는 진동이 생긴다
+        // Idle로 보내면 Idle이 다음 프레임 바로 플로우필드로 전환해 상태 진동이 생길 수 있다
         stateMachine.Movement?.StopMoving();
     }
 }

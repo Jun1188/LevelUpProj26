@@ -2,9 +2,11 @@ using UnityEngine;
 
 public class AttackState : IEntityState
 {
-    private IInteractable target;
+    private Entity target;
 
-    public AttackState(IInteractable target)
+    public Entity Target => target;
+
+    public AttackState(Entity target)
     {
         this.target = target;
     }
@@ -23,7 +25,7 @@ public class AttackState : IEntityState
             return;
         }
 
-        float distance = target.DistanceTo(stateMachine.transform.position);
+        float distance = target.DistanceTo(stateMachine.Transform.position);
         if (stateMachine.Combat == null || distance > stateMachine.Combat.AttackRange)
         {
             // 같은 타겟을 유지한 채 재추적
@@ -48,8 +50,8 @@ public class AttackState : IEntityState
 
         // y축 회전만 적용해 타겟을 바라본다
         Vector3 lookPoint = target.GetPosition();
-        lookPoint.y = stateMachine.transform.position.y;
-        stateMachine.transform.LookAt(lookPoint);
+        lookPoint.y = stateMachine.Transform.position.y;
+        stateMachine.Transform.LookAt(lookPoint);
 
         stateMachine.Combat.TryAttack(target);
     }

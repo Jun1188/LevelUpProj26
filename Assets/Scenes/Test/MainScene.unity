@@ -3502,11 +3502,6 @@ GameObject:
   - component: {fileID: 1765171983}
   - component: {fileID: 1765171982}
   - component: {fileID: 1765171981}
-  - component: {fileID: 1765171980}
-  - component: {fileID: 1765171979}
-  - component: {fileID: 1765171978}
-  - component: {fileID: 1765171977}
-  - component: {fileID: 1765171976}
   - component: {fileID: 1765171975}
   m_Layer: 0
   m_Name: tracer (1)
@@ -3528,74 +3523,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Monster
   moveSpeed: 5
---- !u!114 &1765171976
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1765171974}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7d7aaa214a519ad428d055152b8a33c2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::StateMachineComponent
---- !u!114 &1765171977
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1765171974}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d097aab1f5af26f43879fc55b53f5c64, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SensorComponent
-  detectionRange: 10
-  targetLayerName: Player
-  scanInterval: 0.1
---- !u!114 &1765171978
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1765171974}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e3375bdc190f38d46b91dbaabbe0bae3, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CombatComponent
-  attackDamage: 10
-  attackRange: 1.5
-  attackCooldown: 2
---- !u!114 &1765171979
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1765171974}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 065d9d6109edc954ba5f7412f8d6c4bf, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::MovementComponent
-  moveSpeed: 5
---- !u!114 &1765171980
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1765171974}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 88cd181a8e2d8024599f16fb6060e825, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::HealthComponent
-  maxHealth: 100
 --- !u!54 &1765171981
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -4058,7 +3985,6 @@ GameObject:
   - component: {fileID: 1881460322}
   - component: {fileID: 1881460321}
   - component: {fileID: 1881460320}
-  - component: {fileID: 1881460318}
   - component: {fileID: 1881460319}
   m_Layer: 6
   m_Name: player
@@ -4067,19 +3993,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1881460318
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1881460317}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 88cd181a8e2d8024599f16fb6060e825, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::HealthComponent
-  maxHealth: 100
 --- !u!54 &1881460319
 Rigidbody:
   m_ObjectHideFlags: 0

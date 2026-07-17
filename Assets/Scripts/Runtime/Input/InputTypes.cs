@@ -17,7 +17,8 @@ public enum InputActionId
     Rotate, CycleShape, ToggleBuild, ToggleDemolish,
     Reload, QuickDrop,
     Hotbar, HotbarScroll, // Hotbar는 숫자키 1~9 멀티 바인딩 — 슬롯 번호는 control 이름에서 읽는다
-    Cancel,               // Gameplay와 UI 맵 양쪽에 같은 이름으로 존재 (활성 맵의 것이 발화)
+    Cancel,               // ESC 전용. Gameplay와 UI 맵 양쪽에 같은 이름으로 존재 (활성 맵의 것이 발화)
+    BuildCancel,          // 우클릭 — 건설 모드 취소 전용. Cancel과 분리해 우클릭이 일시정지(Fallback)로 새지 않게
     // UI 맵
     Submit, Navigate,     // Interact(E)도 UI 맵에 중복 존재 — 팝업 닫기용
     // Global 맵 (맵 스택과 무관하게 항상 활성)

@@ -57,7 +57,8 @@ public class BuildController : MonoBehaviour, IInputReceiver
 
         switch (e.Id)
         {
-            case InputActionId.Cancel:
+            case InputActionId.Cancel:       // ESC
+            case InputActionId.BuildCancel:  // 우클릭 (건설 취소 전용 — Cancel에 묶으면 우클릭이 일시정지로 샘)
                 placement.ExitMode();
                 return true;
 

@@ -12,7 +12,7 @@ public class RecipeSelector : MonoBehaviour
 
     public void Init(Building building)
     {
-        GameManager.Instance.interacting = true;
+        //GameManager.Instance.interacting = true;
 
         foreach (var x in recipeSockets)
         {

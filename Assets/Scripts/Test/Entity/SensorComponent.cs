@@ -1,20 +1,34 @@
+using System.Collections.Generic;
 using UnityEngine;
 
-public class SensorComponent : MonoBehaviour
+// 감지 — 순수 C# 클래스. OverlapSphere로 대상 레이어의 Entity를 찾는다.
+// 길찾기 최적화의 핵심: 몬스터 하나하나가 플레이어를 스캔하는 대신,
+// 플레이어(1개)가 범위 내 몬스터들을 찾아 콜백(Monster.OnDetectedByPlayer)해준다.
+// 타워(Building)도 같은 컴포넌트로 사거리 내 몬스터를 찾는다.
+[System.Serializable]
+public class SensorComponent
 {
     [SerializeField] private float detectionRange = 10f;
-    [Tooltip("추적 대상이 위치한 레이어 이름. Awake에서 마스크로 변환된다. 타워디펜스에서 몬스터의 추적 대상은 플레이어뿐.")]
-    [SerializeField] private string targetLayerName = "Player";
+    [Tooltip("감지 대상이 위치한 레이어 이름. Initialize에서 마스크로 변환된다. 플레이어/타워의 감지 대상은 몬스터.")]
+    [SerializeField] private string targetLayerName = "Monster";
     [SerializeField] private float scanInterval = 0.2f; // 매 프레임 OverlapSphere 방지
 
-    public float DetectionRange => detectionRange;
-
+    private Entity owner;
+    private Transform transform;
     private LayerMask targetLayer;
     private float lastScanTime = float.MinValue;
-    private IInteractable cachedTarget;
 
-    private void Awake()
+    // GC 방지용 재사용 버퍼 (메인 스레드 전용)
+    private static readonly Collider[] overlapBuffer = new Collider[64];
+
+    public float DetectionRange => detectionRange;
+    public float ScanInterval => scanInterval;
+
+    public void Initialize(Entity owner)
     {
+        this.owner = owner;
+        transform = owner.transform;
+
         // 레이어 마스크를 이름으로 해석 — 인스펙터 오설정 방지
         targetLayer = LayerMask.GetMask(targetLayerName);
         if (targetLayer == 0)
@@ -22,42 +36,46 @@ public class SensorComponent : MonoBehaviour
                 $"대상 감지가 동작하지 않습니다. Project Settings > Tags and Layers에서 레이어를 확인하세요.");
     }
 
-    // 지정된 반경 내에서 가장 가까운 IInteractable 대상을 찾는 메서드
-    public IInteractable GetClosestTarget()
+    // 스캔 주기가 됐을 때만 true를 반환하며 results를 범위 내 유효 Entity로 채운다.
+    // (플레이어가 몬스터 감지/해제 콜백을 쏘는 용도)
+    public bool TryScan(List<Entity> results)
     {
-        if (Time.time < lastScanTime + scanInterval)
-        {
-            return cachedTarget.IsValidTarget() ? cachedTarget : null;
-        }
+        if (transform == null || Time.time < lastScanTime + scanInterval) return false;
         lastScanTime = Time.time;
 
-        Collider[] colliders = Physics.OverlapSphere(transform.position, detectionRange, targetLayer);
-        IInteractable self = GetComponent<IInteractable>();
-        IInteractable closest = null;
-        float minDistance = float.MaxValue;
-
-        foreach (var col in colliders)
+        results.Clear();
+        int count = Physics.OverlapSphereNonAlloc(transform.position, detectionRange, overlapBuffer, targetLayer);
+        for (int i = 0; i < count; i++)
         {
             // 콜라이더가 자식 모델에 붙어 있는 프리팹 구조를 지원하기 위해 부모까지 탐색
-            IInteractable interactable = col.GetComponentInParent<IInteractable>();
+            Entity entity = overlapBuffer[i].GetComponentInParent<Entity>();
+            if (entity == null || entity == owner || !entity.IsValidTarget()) continue;
+            if (!results.Contains(entity)) results.Add(entity); // 콜라이더 여러 개인 대상 중복 방지
+        }
+        return true;
+    }
 
-            // 나 자신과 죽은 대상(엔티티/건물 공통)은 제외
-            if (interactable == null || interactable == self) continue;
-            // 타워 디펜스: 몬스터는 서로를 추적/공격하지 않는다. 센서로는 플레이어만 획득하고,
-            // 건물은 길이 막혔을 때 PathFinder.FindBlockingBuilding으로 별도 타겟이 된다.
-            // (레이어 설정 실수로 다른 몬스터가 타겟 레이어에 올라와도 방어적으로 걸러낸다)
-            if (interactable is Monster) continue;
-            if (!interactable.IsValidTarget()) continue;
+    // 범위 내 가장 가까운 유효 Entity (타워 자동 공격 등 단일 대상용, 즉시 스캔)
+    public Entity GetClosestTarget(float rangeOverride = -1f)
+    {
+        if (transform == null) return null;
+        float range = rangeOverride > 0f ? rangeOverride : detectionRange;
 
-            float dist = Vector3.Distance(transform.position, col.transform.position);
+        int count = Physics.OverlapSphereNonAlloc(transform.position, range, overlapBuffer, targetLayer);
+        Entity closest = null;
+        float minDistance = float.MaxValue;
+        for (int i = 0; i < count; i++)
+        {
+            Entity entity = overlapBuffer[i].GetComponentInParent<Entity>();
+            if (entity == null || entity == owner || !entity.IsValidTarget()) continue;
+
+            float dist = Vector3.Distance(transform.position, overlapBuffer[i].transform.position);
             if (dist < minDistance)
             {
                 minDistance = dist;
-                closest = interactable;
+                closest = entity;
             }
         }
-
-        cachedTarget = closest;
         return closest;
     }
 }

@@ -72,20 +72,6 @@ public class Monster : Entity
     }
 
     // ── 총기 시스템 통합 ──
-    // Bullet.cs(수정 범위 밖)는 데미지 처리가 없으므로, 피격 판정을 몬스터 쪽에서 받는다.
-    // Bullet 레이어의 오브젝트와 충돌하면 현재 장착 무기(GunData.damage)만큼 피해를 입는다.
-
-    private static int bulletLayer = -2; // -2 = 미해석 캐시
-
-    private void OnCollisionEnter(Collision collision) => HandleBulletHit(collision.gameObject);
-    private void OnTriggerEnter(Collider other) => HandleBulletHit(other.gameObject);
-
-    private void HandleBulletHit(GameObject other)
-    {
-        if (IsDead) return;
-        if (bulletLayer == -2) bulletLayer = LayerMask.NameToLayer("Bullet");
-        if (bulletLayer < 0 || other.layer != bulletLayer) return;
-
-        TakeDamage(Player.GetCurrentBulletDamage());
-    }
+    // 총알 피격 판정은 Bullet.cs가 직접 수행한다 (Bullet.TryApplyDamage → TakeDamage).
+    // 몬스터 쪽 충돌 코드는 필요 없다.
 }

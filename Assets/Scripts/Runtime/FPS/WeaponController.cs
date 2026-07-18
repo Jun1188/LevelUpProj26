@@ -31,6 +31,12 @@ public class WeaponController : MonoBehaviour, IInputReceiver
         else Debug.LogError("[WeaponController] 씬에 InputManager가 없습니다.", this);
     }
 
+    // 플레이어 사망(GO 비활성화) 후 부활 시 리시버 재등록 — Register는 중복 안전
+    private void OnEnable()
+    {
+        if (InputManager.Instance != null) InputManager.Instance.Register(this);
+    }
+
     private void OnDisable()
     {
         ReleaseHeldStates();

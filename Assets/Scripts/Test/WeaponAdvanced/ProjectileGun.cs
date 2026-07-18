@@ -24,7 +24,8 @@ public class ProjectileGun : WeaponBase
         GameObject bullet = bulletPool.Get();
         bullet.transform.position = spawnPos;
         bullet.transform.rotation = spawnRot;
-        bullet.GetComponent<Bullet>()?.Setup(gunData.bulletSpeed, 3f);
+        // 데미지는 총알이 직접 전달한다 (Monster 쪽 피격 코드 제거됨) — 대상은 Monster 레이어
+        bullet.GetComponent<Bullet>()?.Setup(gunData.bulletSpeed, 3f, gunData.damage, LayerMask.GetMask("Monster"));
     }
 
 

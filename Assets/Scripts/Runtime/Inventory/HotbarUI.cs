@@ -21,14 +21,14 @@ public class HotbarUI : MonoBehaviour
     private Image[] slotBackgrounds;
     private Image[] slotBorders;
 
-    // 🔥 [유동적 크기 자동화]: 플레이어가 가진 설정을 실시간으로 단일 진실 공급원으로 삼습니다.
-    public int HotbarSlotCount 
+    // 🔥 [유동적 크기 자동화]: HotbarController의 설정을 실시간으로 단일 진실 공급원으로 삼습니다.
+    public int HotbarSlotCount
     {
         get
         {
-            if (InventoryManager.Instance != null && InventoryManager.Instance.playerController != null)
+            if (HotbarController.Instance != null)
             {
-                return InventoryManager.Instance.playerController.hotbarSlotCount;
+                return HotbarController.Instance.hotbarSlotCount;
             }
             return 5; // 방어용 기본값
         }
@@ -91,9 +91,9 @@ public class HotbarUI : MonoBehaviour
         if (playerInventory == null || hotbarSlots == null) return;
 
         int activeIndex = 0;
-        if (InventoryManager.Instance != null && InventoryManager.Instance.playerController != null)
+        if (HotbarController.Instance != null)
         {
-            activeIndex = InventoryManager.Instance.playerController.CurrentHotbarIndex;
+            activeIndex = HotbarController.Instance.CurrentHotbarIndex;
         }
 
         for (int i = 0; i < hotbarSlots.Length; i++)

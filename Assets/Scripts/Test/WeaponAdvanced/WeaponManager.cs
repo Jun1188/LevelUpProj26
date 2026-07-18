@@ -11,11 +11,6 @@ public class WeaponManager : MonoBehaviour
     public WeaponADS adsModule;
     public WeaponKickback kickbackModule;
 
-    [Header("Input Buffer (선입력)")]
-    private float fireBufferWindow = 0.15f; // 0.15초 동안 입력 기억
-    private float lastFireInputTime = -1f;
-
-
     public ProceduralRecoil recoilManager;
 
     public WeaponBase CurrentWeapon
@@ -38,35 +33,8 @@ public class WeaponManager : MonoBehaviour
         }
     }
 
-    private void Update()
-    {
-        if (CurrentWeapon == null) return; // 무기가 없으면 입력 무시
-
-        HandleInput();
-    }
-
-    private void HandleInput()
-    {
-        bool isAutomatic = CurrentWeapon.gunData.isAutomatic;
-        if (Input.GetMouseButtonDown(1)) adsModule.isAiming = true;
-        if (Input.GetMouseButtonUp(1)) adsModule.isAiming = false;
-
-        if ((isAutomatic && Input.GetMouseButton(0)) || (!isAutomatic && Input.GetMouseButtonDown(0)))
-        {
-            lastFireInputTime = Time.time; // 마우스를 누른 시간을 갱신
-        }
-
-        // 2. 버퍼 시간(0.15초) 내에 있다면 계속 사격 시도
-        if (Time.time - lastFireInputTime <= fireBufferWindow)
-        {
-            if (CurrentWeapon.TryFire())
-            {
-                lastFireInputTime = -1f; // ⭐️ 발사에 성공하면 버퍼를 비움(소비)
-            }
-        }
-
-        if (Input.GetKeyDown(KeyCode.R)) CurrentWeapon.StartReload();
-    }
+    // 사격/조준/재장전 입력(선입력 버퍼 포함)은 WeaponController(입력 파이프라인 어댑터)로 이관 —
+    // 건설 모드·팝업 중 입력이 이곳까지 오지 않게 하기 위함. 이 클래스는 장착/교체만 소유한다.
 
     // ⭐️ [핵심] 인벤토리에서 GunData를 넘겨주면 해당 무기를 찾아 장착하는 함수
     public void EquipWeapon(GunData targetData)

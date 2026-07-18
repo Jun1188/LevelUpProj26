@@ -2,7 +2,7 @@
 
 > **대상**: Unity + New Input System 기반 클라이언트 작업자
 > **목적**: 입력 충돌(UI 열린 상태에서의 오조작, ESC 다중 처리 등)을 구조적으로 차단
-> **상태**: 1단계 구현 완료 (①②층 + BuildController) — §11 구현 노트 참조. 변경 이력은 LOG.md
+> **상태**: 전 단계(①~④) 구현 완료 — §11 구현 노트 참조. 변경 이력은 LOG.md. 에셋은 GameInput으로 단일화(PlayerControls는 미사용, 삭제 대기)
 
 ---
 
@@ -104,7 +104,8 @@ public static class InputPriority
     public const int PopupBase   = 5000;  // + 열린 순서(depth)
     public const int HudWidget   = 1000;  // 툴바, 퀵바
     public const int BuildTool   = 500;   // 건설 모드 배치/회전
-    public const int Player      = 0;     // 항상 최하위 (fallback)
+    public const int Player      = 0;     // 플레이어 조작
+    public const int Fallback    = -100;  // 아무도 안 받은 입력의 최종 처리 (ESC → 일시정지 열기)
 }
 ```
 
@@ -490,5 +491,12 @@ public class BuildModeController : MonoBehaviour, IInputReceiver
 | — | `InputEvent` 스코프 밖 보관 금지 명시 | `CallbackContext`는 콜백 동안만 유효 |
 | — | `IsPointerOverGameObject`는 Update에서 프레임당 1회 캐싱 | 입력 콜백 안 호출은 Unity 경고 + 어차피 직전 프레임 상태 |
 
-**구현 위치**: `InputTypes.cs` / `InputManager.cs` / `GameInput.inputactions`(Gameplay·Global 맵, PlayerControls 무접촉) / `GridSystem/BuildController.cs`
-**남은 단계**: ③ UIPopup 베이스 + 인벤토리 이관 → ④ PlayerController FSM 이관 (각 담당자 협의 필요)
+| §5 `UIPopup.Close()`가 SetActive(false) | `InventoryPopup.Close()`는 `PlayerController.CloseInventory()`로 위임 | 마우스 캐리지 드롭·상자 패널·커서 복원 등 정리 절차가 그쪽에 있음. 팝업은 파이프라인 어댑터일 뿐 |
+| ESC → 일시정지가 PlayerController 콜백 | **열기 = Fallback 리시버**(SystemUIManager, 아무도 안 받은 Cancel), **닫기 = 각 팝업** | 소유권 단일화. 인벤 열림 중 일시정지가 겹치던 버그 해소. timeScale·커서는 PausePopup의 Enter/Exit에 집중 |
+| §6 `IPlayerState` FSM | **보류** — PlayerController는 리시버 + 폴링만 | 현재 플레이어에 상호배타적 상태가 없다 (사격=WeaponManager, 점프=물리 체크, 인벤=맵 스택이 차단). 빈 Idle/Move 상태 클래스는 소비자 없는 선언 — 상태 간 입력 규칙이 실제로 갈리는 시점(탈것, 사다리 등)에 도입 |
+| §6 Move를 라우팅으로 수신 | Move/Look은 **라우팅 제외, `InputManager.ReadValue<T>()` 폴링** | §7-1과의 모순 해소. 비활성 맵은 0을 반환 → 팝업 열림 중 이동·시점이 저절로 멎어 isInventoryOpen 가드가 불필요해짐 |
+| 사격이 PlayerController 경유 | **WeaponManager가 직접 Player 리시버** (Attack/Reload) | 건설 모드(BuildTool이 Attack 소비)·팝업(UI 맵)에서 신호가 도달하지 않음 — "건설 중 좌클릭 사격" 구조적 해소 |
+| — | **R키 겹침 처리**: 건설 모드 중 BuildController가 Reload도 소비 | Rotate(건설 회전)와 Reload(재장전)가 같은 R — 모드 중 전투 입력 차단 규칙(Attack과 동일)으로 해소 |
+| — | **ToggleInventory(I)는 Global 맵** | 열기 = PlayerController(최하위), 닫기 = InventoryPopup이 상위에서 가로챔 → I로 열고 닫기. 일시정지 중엔 모달이 삼키고, 건설 모드 중엔 BuildTool이 소비(모드 배타) |
+
+**구현 위치**: `InputTypes.cs` / `InputManager.cs` / `UIPopup.cs` / `GameInput.inputactions`(Gameplay·UI·Global 맵) / `GridSystem/BuildController.cs` / `Inventory/InventoryPopup.cs` / `Inventory/HotbarController.cs` / `Manager/PausePopup.cs` / `FPS/PlayerController.cs` / `WeaponManager.cs`

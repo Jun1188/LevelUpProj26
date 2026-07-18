@@ -34,9 +34,9 @@ public class InventoryUI : MonoBehaviour
         int end = inventory.slotCount - 1;
 
         // 오직 '플레이어 메인 가방 UI'일 때만 자동으로 앞부분(핫바)을 건너뜁니다!
-        if (isPlayerMainInventory && InventoryManager.Instance != null && InventoryManager.Instance.playerController != null)
+        if (isPlayerMainInventory && HotbarController.Instance != null)
         {
-            start = InventoryManager.Instance.playerController.hotbarSlotCount;
+            start = HotbarController.Instance.hotbarSlotCount;
         }
 
         int count = Mathf.Max(0, end - start + 1);
@@ -63,9 +63,9 @@ public class InventoryUI : MonoBehaviour
         int start = 0;
         int end = inventory.slotCount - 1;
 
-        if (isPlayerMainInventory && InventoryManager.Instance != null && InventoryManager.Instance.playerController != null)
+        if (isPlayerMainInventory && HotbarController.Instance != null)
         {
-            start = InventoryManager.Instance.playerController.hotbarSlotCount;
+            start = HotbarController.Instance.hotbarSlotCount;
         }
 
         int count = Mathf.Max(0, end - start + 1);

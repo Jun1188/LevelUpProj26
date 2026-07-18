@@ -220,14 +220,8 @@ public class PlacementSystem : MonoBehaviour
 
     private void UpdateDemolishing()
     {
-        // 조준하는 칸 → 그 칸의 건물 찾아 하이라이트 갱신 (철거는 OnInput(Attack)이 수행)
-        Building target = null;
-        if (TryGetGroundPoint(out Vector3 cursorPoint))
-        {
-            Vector2Int cell = grid.WorldToGrid(cursorPoint);
-            target = FactoryBootstrap.Instance.Sim.Grid.GetAt(cell);
-        }
-        SetHovered(target);
+        // 건물 몸체 직접 조준 우선, 실패하면 바닥 칸 폴백 (철거는 OnInput(Attack)이 수행)
+        SetHovered(TryGetAimedBuilding(out Building target) ? target : null);
     }
 
     /// <summary>특정 건물을 철거한다. 점유 칸 모두 해제 + 인스턴스 파괴.</summary>
@@ -279,6 +273,34 @@ public class PlacementSystem : MonoBehaviour
     }
 
     // ===================== 공용 헬퍼 =====================
+
+    /// <summary>
+    /// 조준한 건물 찾기 — 공용 쿼리 (철거 하이라이트가 사용, 이후 기계 UI 열기 등도 여기로).
+    /// ① 건물 콜라이더 직접 히트(몸체 조준) ② 실패 시 바닥 칸의 건물 폴백(벨트처럼 낮은 건물 대비).
+    /// </summary>
+    public bool TryGetAimedBuilding(out Building building)
+    {
+        building = null;
+
+        // ① 몸체 직접 조준 — 건물은 Default 레이어라 마스크 없이 쏘고 뷰 컴포넌트로 판별
+        if (Physics.Raycast(AimRay(), out RaycastHit bodyHit, 1000f))
+        {
+            var view = bodyHit.collider.GetComponentInParent<BuildingView>();
+            if (view != null && view.Building != null)
+            {
+                building = view.Building;
+                return true;
+            }
+        }
+
+        // ② 바닥 칸 폴백
+        if (TryGetGroundPoint(out Vector3 cursorPoint))
+        {
+            Vector2Int cell = grid.WorldToGrid(cursorPoint);
+            building = FactoryBootstrap.Instance.Sim.Grid.GetAt(cell);
+        }
+        return building != null;
+    }
 
     private bool TryGetGroundPoint(out Vector3 point)
     {

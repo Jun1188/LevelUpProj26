@@ -1,15 +1,21 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.InputSystem;
 using TMPro;
 
 
-public class SystemUIManager : MonoBehaviour
+/// <summary>
+/// 시스템 UI (일시정지 메뉴, 낮/밤 HUD).
+/// 입력 파이프라인의 Fallback 리시버 — 아무도 소비하지 않은 Cancel(ESC)이
+/// 여기까지 내려오면 "열려 있는 창이 없다"는 뜻이므로 일시정지를 연다.
+/// (닫기는 pausePanel의 PausePopup이 상위 우선순위에서 소비)
+/// </summary>
+public class SystemUIManager : MonoBehaviour, IInputReceiver
 {
     public static SystemUIManager Instance { get; private set; }
 
     [Header("=== ESC Pause Menu UI ===")]
-    public GameObject pausePanel;         
-    private bool isPaused = false;
+    public GameObject pausePanel;         // PausePopup 컴포넌트 부착 필요 (timeScale·커서 담당)
 
     [Header("=== Day / Night HUD ===")]
     public TextMeshProUGUI dayText;       // "Day 1" 표시용 텍스트
@@ -25,10 +31,31 @@ public class SystemUIManager : MonoBehaviour
 
     private void Start()
     {
-        if (pausePanel != null) pausePanel.SetActive(isPaused);
-        
+        if (pausePanel != null) pausePanel.SetActive(false);
+
         // 🎮 게임 시작 시 GameManager 데이터 기반으로 UI 첫 세팅
         UpdateHUD();
+
+        if (InputManager.Instance != null) InputManager.Instance.Register(this);
+        else Debug.LogError("[SystemUIManager] 씬에 InputManager가 없습니다.", this);
+    }
+
+    private void OnDisable()
+    {
+        if (InputManager.Instance != null) InputManager.Instance.Unregister(this);
+    }
+
+    // ====================================================================
+    // 🎯 입력 파이프라인 — ESC 최종 처리 (일시정지 열기)
+    // ====================================================================
+    public int Priority => InputPriority.Fallback;
+    public bool IsInputActive => isActiveAndEnabled;
+
+    public bool OnInput(in InputEvent e)
+    {
+        if (e.Phase != InputActionPhase.Performed || e.Id != InputActionId.Cancel) return false;
+        TogglePauseMenu();
+        return true;
     }
 
 
@@ -53,25 +80,14 @@ public class SystemUIManager : MonoBehaviour
     }
 
     // ====================================================================
-    // ⏸️ ESC 일시정지 메뉴 토글
+    // ⏸️ 일시정지 메뉴 토글 (Resume 버튼 등 UI에서도 호출)
+    //    timeScale·커서는 PausePopup(OnEnable/OnDisable)이 담당 —
+    //    어떤 경로로 열리든 부수 상태가 일관되게 처리된다.
     // ====================================================================
     public void TogglePauseMenu()
     {
-        isPaused = !isPaused;
-        pausePanel.SetActive(isPaused);
-
-        if (isPaused)
-        {
-            Time.timeScale = 0f; 
-            Cursor.lockState = CursorLockMode.None; 
-            Cursor.visible = true;
-        }
-        else
-        {
-            Time.timeScale = 1f; 
-            Cursor.lockState = CursorLockMode.Locked; 
-            Cursor.visible = false;
-        }
+        if (pausePanel == null) return;
+        pausePanel.SetActive(!pausePanel.activeSelf);
     }
 
     // ====================================================================

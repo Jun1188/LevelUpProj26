@@ -33,16 +33,12 @@ public class PlayerController : Entity, IInputReceiver
     [Header("Inventory Backend")]
     public Inventory playerInventory;
     private bool isInventoryOpen = false;
-    private Inventory currentOpenedInventory = null;
 
     [Header("Inventory & HUD UI")]
     public GameObject inventoryUIPanel;
     public InventoryUI inventoryUI;
     public InventoryUI chestInventoryUI;
     public GameObject crosshairUI;      // 표시/숨김은 InventoryPopup의 Enter/Exit가 수행
-
-    [Header("Debug / Cheat Tools")]
-    public ItemDataSO debugTestItem;
 
     private Vector2 moveInput;
     private Vector2 mouseInput;
@@ -187,12 +183,8 @@ public class PlayerController : Entity, IInputReceiver
     #endregion
 
     #region [6. Core Mechanics - Inventory System Management]
-
-    public void ToggleInventory()
-    {
-        if (isInventoryOpen) CloseInventory();
-        else OpenPlayerInventory();
-    }
+    // 열기/닫기가 파이프라인에서 분리 처리되므로 토글 API는 없다 —
+    // 열기: OnInput(ToggleInventory), 닫기: InventoryPopup → CloseInventory()
 
     public void OpenPlayerInventory()
     {
@@ -207,7 +199,6 @@ public class PlayerController : Entity, IInputReceiver
     public void OpenTargetInventory(Inventory targetInventory)
     {
         isInventoryOpen = true;
-        currentOpenedInventory = targetInventory;
         HaltMomentum();
 
         if (chestInventoryUI != null)
@@ -230,7 +221,6 @@ public class PlayerController : Entity, IInputReceiver
         }
 
         isInventoryOpen = false;
-        currentOpenedInventory = null;
 
         if (inventoryUIPanel != null) inventoryUIPanel.SetActive(false);  // → InventoryPopup.OnDisable (UI 맵 Pop + 커서/크로스헤어)
         if (chestInventoryUI != null) chestInventoryUI.gameObject.SetActive(false);

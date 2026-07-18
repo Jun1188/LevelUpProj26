@@ -77,8 +77,10 @@ public class FlowFieldManager : MonoBehaviour
         field.Rebuild(GridManager.Instance, goalBuffer);
     }
 
-    // 살아있는 코어/타워가 차지한 셀만 목표로 수집 — 벨트/조립기 등 일반 팩토리 건물은
-    // 몬스터의 "진격 목표"가 아니다 (경로를 막으면 FlowFieldState의 사거리 판정이 부수긴 한다).
+    // 살아있는 건물이 차지한 셀을 목표로 수집. 단 벨트는 제외 —
+    // 운송로(벨트)와 그 위의 아이템은 몬스터의 "진격 목표"가 아니다
+    // (아이템/DroppedItem은 애초에 Entities.Building이 아니라 목표 대상이 될 수 없다).
+    // 경로를 막는 벨트는 기존대로 FlowFieldState의 사거리 판정으로 부술 수 있다.
     // 멀티타일 건물은 콜라이더 바운즈가 걸친 모든 셀을 시드로 넣는다.
     private void CollectGoals()
     {
@@ -88,7 +90,7 @@ public class FlowFieldManager : MonoBehaviour
         foreach (var building in Entities.Building.All)
         {
             if (!building.IsValidTarget()) continue;
-            if (!building.IsCore && !(building is Entities.BattleTower)) continue; // 목표 = 코어/타워 한정
+            if (building.Sim != null && building.Sim.Data is BeltDataSO) continue; // 벨트만 목표 제외
             int seedCost = building.IsCore ? 0 : towerGoalCost;
 
             var col = building.GetComponentInChildren<Collider>();

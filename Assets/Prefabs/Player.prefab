@@ -14,6 +14,7 @@ GameObject:
   - component: {fileID: 3775902399488542646}
   - component: {fileID: 7096013060996383979}
   - component: {fileID: 6901295241664568780}
+  - component: {fileID: 6652096104688218203}
   m_Layer: 6
   m_Name: Weapon_Holder
   m_TagString: Untagged
@@ -124,6 +125,20 @@ MonoBehaviour:
   moveSwaySmooth: 6
   maxReferenceSpeed: 5
   inputSmoothing: 0.15
+--- !u!114 &6652096104688218203
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 396995298283521722}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e00339ba1a242f6b5a48975dc496b42, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WeaponController
+  weaponManager: {fileID: 8239470649360977166}
+  fireBufferWindow: 0.15
 --- !u!1 &452123137726881323
 GameObject:
   m_ObjectHideFlags: 0
@@ -381,7 +396,7 @@ GameObject:
   - component: {fileID: 4185575877547204012}
   - component: {fileID: 6442160254612740854}
   - component: {fileID: 1341143159957256118}
-  - component: {fileID: 1256689177612881881}
+  - component: {fileID: 4783920156234871905}
   - component: {fileID: 307732148233776431}
   m_Layer: 6
   m_Name: Player
@@ -498,7 +513,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Inventory
   slotCount: 45
   slots: []
---- !u!114 &1256689177612881881
+--- !u!114 &4783920156234871905
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -507,27 +522,11 @@ MonoBehaviour:
   m_GameObject: {fileID: 7498640336194902235}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 62899f850307741f2a39c98a8b639597, type: 3}
+  m_Script: {fileID: 11500000, guid: 019ef05594285c34ba46ece5a5998d40, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Unity.InputSystem::UnityEngine.InputSystem.PlayerInput
-  m_Actions: {fileID: -944628639613478452, guid: 2b4b2896dff1a0b47b8e8670bb14f625, type: 3}
-  m_NotificationBehavior: 0
-  m_UIInputModule: {fileID: 0}
-  m_DeviceLostEvent:
-    m_PersistentCalls:
-      m_Calls: []
-  m_DeviceRegainedEvent:
-    m_PersistentCalls:
-      m_Calls: []
-  m_ControlsChangedEvent:
-    m_PersistentCalls:
-      m_Calls: []
-  m_ActionEvents: []
-  m_NeverAutoSwitchControlSchemes: 0
-  m_DefaultControlScheme: Keyboard&Mouse
-  m_DefaultActionMap: Player
-  m_SplitScreenIndex: -1
-  m_Camera: {fileID: 2516082347585424752}
+  m_EditorClassIdentifier: Assembly-CSharp::HotbarController
+  hotbarSlotCount: 9
+  player: {fileID: 6442160254612740854}
 --- !u!114 &307732148233776431
 MonoBehaviour:
   m_ObjectHideFlags: 0

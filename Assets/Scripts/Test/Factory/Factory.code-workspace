@@ -14,6 +14,9 @@
 		},
 		{
 			"path": "../../Runtime/Input"
+		},
+		{
+			"path": "../../Runtime/FPS"
 		}
 	]
 }

@@ -48,5 +48,23 @@
 - **v1 한계**: 같은 프레임에 플레이어와 공장이 같은 아이템을 동시에 옮기면 개수 차이 기반
   조정이 드물게 어긋날 수 있음. "Inventory의 ItemContainer 위임" 팀 협의가 근본 해결
 
+---
+
+## 2026-07-23 — 상호작용 재설계 ④: Inventory → ItemContainer 위임 (저장 계층 단일화)
+
+- **Inventory가 ItemContainer 위임 어댑터로** — 씬 접점(MonoBehaviour)만 남고 데이터·규칙은
+  전부 컨테이너로. 공개 `slots` 배열 제거 → 규칙(필터·스택 캡·종류당 1스택)이 항상 지켜짐.
+  기존 `AddItem`의 스택 상한 초과 버그도 자연 해소
+- **ItemContainer에 위치(슬롯 인덱스) 연산 추가**: PeekAt/TakeAt/TryPutAt/TryExchangeAt —
+  UI 드래그·분할·교환용. 공장 물류는 기존 위치 무관 API만 사용 (심 계약 최소 확장)
+- **Version 변경 추적**: 내용이 바뀌는 모든 연산에서 증가. 건물 보관함이 열려 있는 동안
+  InventoryManager.Update가 버전 변화를 감지해 화면 갱신 (인플레이스 수정은 Touch() 규약)
+- **ContainerInventoryBridge 삭제** — 프록시 동기화가 통째로 불필요.
+  건물 보관함은 프록시 Inventory에 `Bind(container)`로 꽂아 **같은 객체를 직접** 본다.
+  ③의 유령 아이템/개수 어긋남 한계 소멸
+- 전환 범위: InventoryManager 클릭 핸들러(좌/우/쉬프트/무기검사), InventoryUI,
+  InventorySlotUI, HotbarUI, HotbarController — `.slots[]` 직접 접근 0건 확인
+
 ### 다음 후보
-- Assembler 레시피 UI (IInteractiveBehavior 재사용), Chest의 Inventory→ItemContainer 통일 협의
+- Assembler 레시피 UI (IInteractiveBehavior 재사용)
+- Chest 시작 아이템 등 Inventory 직렬화가 필요해지면 컨테이너 직렬화 방식 협의 (세이브 시스템과 함께)

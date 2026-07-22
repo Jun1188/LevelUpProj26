@@ -79,7 +79,7 @@ public class InventoryUI : MonoBehaviour
         for (int i = 0; i < count; i++)
         {
             int slotIdx = start + i;
-            ItemStack itemStack = inventory.slots[slotIdx];
+            ItemStack itemStack = inventory.GetAt(slotIdx);
             if (itemStack != null && itemStack.item != null && itemStack.amount > 0)
             {
                 uiSlots[i].SetItem(itemStack.item, itemStack.amount);

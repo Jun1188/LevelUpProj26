@@ -98,9 +98,9 @@ public class HotbarUI : MonoBehaviour
 
         for (int i = 0; i < hotbarSlots.Length; i++)
         {
-            if (i >= playerInventory.slots.Length) break;
+            if (i >= playerInventory.SlotCount) break;
 
-            ItemStack itemStack = playerInventory.slots[i];
+            ItemStack itemStack = playerInventory.GetAt(i);
             if (itemStack != null && itemStack.item != null && itemStack.amount > 0)
             {
                 hotbarSlots[i].SetItem(itemStack.item, itemStack.amount);

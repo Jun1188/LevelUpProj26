@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Entities
 {
-    // 건물 엔티티 — 구 IInteractable + BuildingDamageable + BuildingView의 기능 통합.
+    // 건물 엔티티 — 심 건물의 씬 표현이자 전투 주체 (구 BuildingDamageable/BuildingView 통합·대체).
     // 이동은 없고, 몬스터에게 피격되는 HP와 (canAttack 건물 한정) 자동 공격을 가진다.
     // HP 0 → die: 심 제거(PlacementBridge.Remove) + GameObject 소멸 + 플로우필드 갱신.
     //
@@ -86,8 +86,7 @@ namespace Entities
         }
 
         // 심 건물(POCO) → 건물 엔티티 (구 BuildingDamageable.GetOrAttach).
-        // PlacementBridge가 모든 뷰에 BuildingView(: Entities.Building)를 붙이므로
-        // 뷰가 있으면 항상 건물 엔티티를 얻을 수 있다.
+        // PlacementBridge가 배치 시 모든 뷰 GO에 이 컴포넌트를 붙이고 매핑을 등록한다.
         public static Building GetOrAttach(global::Building sim)
         {
             if (sim == null || sim.IsRemoved) return null;
@@ -95,10 +94,9 @@ namespace Entities
             var boot = FactoryBootstrap.Instance;
             if (boot == null) return null;
 
-            var view = boot.GetView(sim);
-            if (view == null) return null; // 뷰 없는 심 전용 건물(테스트 등)은 공격 대상이 될 수 없음
+            var entity = boot.GetView(sim);
+            if (entity == null) return null; // 뷰 없는 심 전용 건물(테스트 등)은 공격 대상이 될 수 없음
 
-            Building entity = view; // BuildingView : Entities.Building
             if (entity.Sim == null) entity.Sim = sim;
             return entity;
         }

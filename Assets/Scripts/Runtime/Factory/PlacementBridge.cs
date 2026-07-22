@@ -1,7 +1,7 @@
 using UnityEngine;
 
 /// <summary>
-/// 배치/제거의 Unity 쪽 진입점 — 심 배치(FactorySim)와 뷰 생성(BuildingView)을 묶는다.
+/// 배치/제거의 Unity 쪽 진입점 — 심 배치(FactorySim)와 뷰(Entities.Building) 생성을 묶는다.
 /// 심만 필요하면(테스트 등) FactorySim.Place/Remove를 직접 호출하면 된다.
 /// </summary>
 public static class PlacementBridge
@@ -20,9 +20,10 @@ public static class PlacementBridge
             ? Object.Instantiate(prefab, pos, Quaternion.Euler(0, rotSteps * 90f, 0))
             : new GameObject(so.name);   // 프리팹 누락 시 빈 오브젝트
 
-        var view = go.GetComponent<BuildingView>();
-        if (view == null) view = go.AddComponent<BuildingView>();
-        view.Building = b;
+        // 프리팹에 미리 붙어 있으면(타워의 canAttack 설정 등) 그대로 쓰고, 없으면 부착
+        var view = go.GetComponent<Entities.Building>();
+        if (view == null) view = go.AddComponent<Entities.Building>();
+        view.Sim = b;
         boot.RegisterView(b, view);
 
         return b;

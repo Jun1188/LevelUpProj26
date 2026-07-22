@@ -282,13 +282,13 @@ public class PlacementSystem : MonoBehaviour
     {
         building = null;
 
-        // ① 몸체 직접 조준 — 건물은 Default 레이어라 마스크 없이 쏘고 뷰 컴포넌트로 판별
+        // ① 몸체 직접 조준 — 건물은 Default 레이어라 마스크 없이 쏘고 엔티티 컴포넌트로 판별
         if (Physics.Raycast(AimRay(), out RaycastHit bodyHit, 1000f))
         {
-            var view = bodyHit.collider.GetComponentInParent<BuildingView>();
-            if (view != null && view.Building != null)
+            var view = bodyHit.collider.GetComponentInParent<Entities.Building>();
+            if (view != null && view.Sim != null)   // Sim 없는 건물(코어 등)은 철거 대상 아님
             {
-                building = view.Building;
+                building = view.Sim;
                 return true;
             }
         }

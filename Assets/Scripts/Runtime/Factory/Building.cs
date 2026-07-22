@@ -4,7 +4,7 @@ using UnityEngine;
 /// <summary>
 /// 배치된 건물의 심(시뮬레이션) 엔티티 — plain C#, MonoBehaviour 아님.
 /// BuildingDataSO = 설계도 (공유됨), Building = 실물 (각자 독립적 상태).
-/// 씬 표현(GameObject)은 BuildingView가 담당하고 FactoryBootstrap이 매핑한다.
+/// 씬 표현(GameObject)은 Entities.Building이 담당하고 FactoryBootstrap이 매핑한다.
 ///
 /// 연결 목록(InputConnections/OutputConnections)은 BuildingGraph가 채우고,
 /// 행동(IBuildingBehavior)은 SO의 CreateBehavior()가 결정한다.

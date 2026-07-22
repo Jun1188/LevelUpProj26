@@ -27,6 +27,9 @@ public class Inventory : MonoBehaviour
 {
     public int slotCount = 36; // 마크 인벤토리 기본 칸수
 
+    [Tooltip("시작 아이템 — 씬/프리팹에서 저작 (상자 초기 내용물 등). 슬롯 위치 그대로 컨테이너에 주입된다.\n런타임 상태는 Container가 소유하며 이 배열로 되돌아오지 않는다.")]
+    [SerializeField] private ItemStack[] slots;   // 구 공개 배열과 같은 이름 — 기존 씬 직렬화 데이터 유지
+
     private ItemContainer container;
 
     /// <summary>위임 대상 컨테이너. 필요 시 지연 생성 — Awake 순서에 안전.</summary>
@@ -34,8 +37,24 @@ public class Inventory : MonoBehaviour
     {
         get
         {
-            container ??= new ItemContainer(slotCount);
+            if (container == null)
+            {
+                container = new ItemContainer(slotCount);
+                SeedInitialItems();
+            }
             return container;
+        }
+    }
+
+    /// <summary>인스펙터에 저작된 시작 아이템을 슬롯 위치 그대로 1회 주입.</summary>
+    private void SeedInitialItems()
+    {
+        if (slots == null) return;
+        for (int i = 0; i < slots.Length && i < container.SlotCount; i++)
+        {
+            var s = slots[i];
+            if (s == null || s.item == null || s.amount <= 0) continue;
+            container.TryPutAt(i, new ItemStack(s.item, s.amount) { maxStackSize = s.maxStackSize });
         }
     }
 

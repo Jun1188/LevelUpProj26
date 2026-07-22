@@ -10,6 +10,12 @@ public class MovementComponent
     [SerializeField] private float moveSpeed = 5f;
     [SerializeField] private float rotateSpeed = 720f; // 도/초 — 이동 방향으로 몸 돌리는 속도
 
+    [Header("Separation (몬스터 겹침 방지)")]
+    [Tooltip("이 반경 내의 다른 몬스터로부터 밀려난다. 0이면 분리 조향 비활성화.")]
+    [SerializeField] private float separationRadius = 0.8f;
+    [Tooltip("밀어내는 세기 배율. 이동 속도 대비 최대 절반 속도로만 밀리도록 내부에서 제한된다.")]
+    [SerializeField] private float separationWeight = 1.5f;
+
     private Transform transform;
     private List<Node> currentPath;
     private int targetIndex;
@@ -55,6 +61,9 @@ public class MovementComponent
 
         if (currentPath != null) TickPath(deltaTime);
         else if (flowDirection != Vector3.zero) TickDirection(deltaTime);
+
+        // 이동 모드와 무관하게 항상 적용 — 정지(공격) 중에도 겹친 개체는 서로 밀려난다
+        ApplySeparation(deltaTime);
     }
 
     private void TickPath(float deltaTime)
@@ -111,6 +120,61 @@ public class MovementComponent
         transform.position = next;
         Face(flowDirection, deltaTime);
     }
+
+    // 분리 조향 — 주변 몬스터로부터 밀려나는 변위를 이동 후 보정으로 적용한다.
+    // 물리(Rigidbody) 없이 transform 이동을 유지하면서 개체 겹침만 해소하는 경량 방식.
+    private void ApplySeparation(float deltaTime)
+    {
+        if (separationRadius <= 0f) return;
+
+        if (monsterMask == 0)
+        {
+            monsterMask = LayerMask.GetMask("Monster");
+            if (monsterMask == 0) { separationRadius = 0f; return; } // 레이어 미설정 프로젝트 — 비활성화
+        }
+
+        Vector3 pos = transform.position;
+        int count = Physics.OverlapSphereNonAlloc(pos, separationRadius, separationBuffer, monsterMask);
+
+        Vector3 push = Vector3.zero;
+        for (int i = 0; i < count; i++)
+        {
+            Transform other = separationBuffer[i].transform;
+            if (other == transform || other.IsChildOf(transform)) continue; // 자기 자신/자식 콜라이더 제외
+
+            Vector3 away = pos - other.position;
+            away.y = 0f;
+            float dist = away.magnitude;
+            if (dist < 0.0001f)
+            {
+                // 완전히 겹친 경우 — 인스턴스 ID 기반 고정 방향으로 밀어 좌우 진동 방지
+                float angle = (transform.GetInstanceID() % 360) * Mathf.Deg2Rad;
+                away = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle));
+                dist = 0.0001f;
+            }
+            // 가까울수록 강하게 (반경 밖 0 ~ 밀착 1 선형)
+            push += away / dist * (1f - Mathf.Clamp01(dist / separationRadius));
+        }
+        if (push == Vector3.zero) return;
+
+        // 본 이동을 압도하지 않도록 최대 이동속도의 절반으로 제한
+        Vector3 offset = Vector3.ClampMagnitude(push * (separationWeight * moveSpeed * deltaTime),
+                                                moveSpeed * deltaTime * 0.5f);
+        Vector3 next = pos + offset;
+
+        // 건물/장애물 셀로는 밀려나지 않는다
+        if (GridManager.Instance != null)
+        {
+            Node nextNode = GridManager.Instance.NodeFromWorldPoint(next);
+            if (nextNode == null || !GridManager.Instance.IsWalkable(nextNode)) return;
+        }
+        transform.position = next;
+    }
+
+    private LayerMask monsterMask;
+
+    // GC 방지용 재사용 버퍼 (메인 스레드 전용, SensorComponent와 같은 패턴)
+    private static readonly Collider[] separationBuffer = new Collider[32];
 
     private void Face(Vector3 direction, float deltaTime)
     {

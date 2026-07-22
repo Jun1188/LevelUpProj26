@@ -27,6 +27,14 @@ shared, append-only log file — not through this file directly.
    with `agent=LM Studio:<model-name>` and note what it was asked and the
    outcome that was actually used.
 
+## Unity tooling
+
+- **Unity MCP가 미연결(unconnect)이면 Unity CLI로 작업한다.** 즉
+  `mcp__unity__*` 툴(Pipeline 패키지 기반)이 붙어 있지 않거나 `unity status`가
+  `STATUS_NO_INSTANCES`를 반환하면, Unity 관련 작업은 Unity CLI(`unity.exe`,
+  `unity-cli` skill / `mcp__unity__unity_run`)로 수행한다.
+- 이 규칙은 Claude Code / Antigravity / 기타 AI 툴 모두에 적용된다.
+
 ## Project notes
 
 - Unity project. Main active work area right now: `Assets/Scripts/Test/Entity`

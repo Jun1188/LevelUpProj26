@@ -10,7 +10,7 @@ namespace Entities
     // 이름 충돌 주의: 팩토리 심의 plain C# Building(전역 네임스페이스)과 구분하기 위해
     // Entities 네임스페이스에 있다. 심 건물 참조는 global::Building(Sim 프로퍼티).
     // 코어처럼 심 없이 씬에 직접 배치하는 건물은 Sim이 null이어도 된다.
-    public class Building : Entity
+    public class Building : Entity, IInteractable
     {
         [Header("Building Settings")]
         [Tooltip("맵 중앙의 코어인지 여부. 플로우필드에서 타워보다 우선하는 최종 목표가 된다.")]
@@ -28,6 +28,14 @@ namespace Entities
         public override CombatComponent Combat => canAttack ? combat : null;
         public override SensorComponent Sensor => sensor;
         public override bool IsDead => base.IsDead || (Sim != null && Sim.IsRemoved);
+
+        // ── 플레이어 상호작용(E) — 행동이 IInteractiveBehavior를 구현한 건물만 반응 (opt-in)
+        public string Prompt => Sim?.Behavior is IInteractiveBehavior i ? i.InteractPrompt : null;
+
+        public void Interact(PlayerController player)
+        {
+            if (Sim?.Behavior is IInteractiveBehavior i) i.Interact(player);
+        }
 
         // 살아있는 건물 레지스트리 — 플로우필드 목표 수집과 몬스터의 사거리 검색용
         private static readonly List<Building> all = new List<Building>();

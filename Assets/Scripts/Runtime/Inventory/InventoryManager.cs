@@ -37,6 +37,17 @@ public class InventoryManager : MonoBehaviour
     /// <summary>컨테이너(상자·건물 보관함)와 함께 열기 — 타겟의 Interact()가 호출.</summary>
     public void OpenContainerScreen(Inventory container) => OpenScreen(container);
 
+    /// <summary>심 컨테이너(건물 보관함)를 열기 — ContainerInventoryBridge가 프록시로 중계.</summary>
+    public void OpenContainerScreen(ItemContainer container)
+    {
+        if (container == null || playerController == null || IsScreenOpen) return;
+
+        if (containerBridge == null) containerBridge = gameObject.AddComponent<ContainerInventoryBridge>();
+        OpenScreen(containerBridge.Open(container, playerController.chestInventoryUI));
+    }
+
+    private ContainerInventoryBridge containerBridge;
+
     private void OpenScreen(Inventory container)
     {
         if (playerController == null || IsScreenOpen) return;
@@ -60,6 +71,7 @@ public class InventoryManager : MonoBehaviour
     public void CloseScreen()
     {
         DropMouseCarriageItem();
+        if (containerBridge != null) containerBridge.Close();   // 마지막 변화 반영 + 연결 해제
         IsScreenOpen = false;
 
         if (playerController == null) return;

@@ -13,12 +13,22 @@ public class StorageDataSO : BuildingDataSO
 /// <summary>
 /// 큰 버퍼를 가진 저장소.
 /// 입력 버퍼로 받은 아이템을 출력 버퍼로 옮긴 뒤, 연결된 하류로 Push 시도.
+/// E 상호작용: 보관함(출력 버퍼)을 인벤 화면과 함께 연다.
 /// </summary>
-public class StorageBehavior : IBuildingBehavior
+public class StorageBehavior : IBuildingBehavior, IInteractiveBehavior
 {
     readonly Building _b;
     public StorageBehavior(Building b) => _b = b;
     public void OnAfterPlaced() { }
+
+    public string InteractPrompt => "보관함 열기";
+
+    public void Interact(PlayerController player)
+    {
+        // 실질 보관 = 출력 버퍼 (입력 버퍼는 경유지 — Tick이 곧바로 출력으로 옮긴다)
+        if (InventoryManager.Instance != null)
+            InventoryManager.Instance.OpenContainerScreen(_b.Output);
+    }
 
     public void Tick(float dt)
     {

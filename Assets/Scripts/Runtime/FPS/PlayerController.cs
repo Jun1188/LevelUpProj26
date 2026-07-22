@@ -43,6 +43,7 @@ public class PlayerController : Entity, IInputReceiver
     private Vector2 moveInput;
     private Vector2 mouseInput;
     private bool isJumpPressed;
+    private PlayerInteractionManager interaction;   // 조준 판정 공유 (같은 GO에 부착)
 
     #endregion
 
@@ -93,6 +94,10 @@ public class PlayerController : Entity, IInputReceiver
 
         if (InputManager.Instance != null) InputManager.Instance.Register(this);
         else Debug.LogError("[PlayerController] 씬에 InputManager가 없습니다.", this);
+
+        interaction = GetComponent<PlayerInteractionManager>();
+        if (interaction == null)
+            Debug.LogWarning("[PlayerController] PlayerInteractionManager가 없어 E 상호작용이 비활성입니다.", this);
 
         if (InventoryManager.Instance != null && playerInventory != null)
         {
@@ -165,20 +170,11 @@ public class PlayerController : Entity, IInputReceiver
 
     #region [5. Core Mechanics - Interaction]
 
-    /// <summary>조준 중인 Interactable에 상호작용 (E). 인벤 열림 중 E로 닫기는 InventoryPopup이 처리.</summary>
-    private void TryInteract()
-    {
-        Ray ray = new(playerCamera.position, playerCamera.forward);
-
-        if (Physics.Raycast(ray, out RaycastHit hit, 4f, LayerMask.GetMask("Interactable")))
-        {
-            Interactable interactable = hit.collider.GetComponentInParent<Interactable>();
-            if (interactable != null)
-            {
-                interactable.OnInteract(this);
-            }
-        }
-    }
+    /// <summary>
+    /// 조준 중인 대상에 상호작용 (E). 판정은 PlayerInteractionManager.Current를 그대로 사용 —
+    /// 프롬프트에 보이는 대상과 실행 대상이 항상 일치한다. 인벤 열림 중 E 닫기는 InventoryPopup이 처리.
+    /// </summary>
+    private void TryInteract() => interaction?.Current?.Interact(this);
 
     #endregion
 

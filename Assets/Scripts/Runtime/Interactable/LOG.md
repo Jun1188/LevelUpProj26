@@ -15,8 +15,18 @@
 - `Prompt`가 null/빈 문자열이면 "지금은 상호작용 불가" — 프롬프트도 안 뜨고 E도 무시
 - PlayerInteractionManager를 Scripts 루트 → Runtime/Interactable/로 이동 (guid 유지, 프리팹 참조 안전)
 
+---
+
+## 2026-07-22 — 상호작용 재설계 ②: 타겟이 화면을 요청 (OpenInventory 해체)
+
+- **인벤 화면 소유권을 InventoryManager로**: `OpenPlayerScreen()`(I키) /
+  `OpenContainerScreen(Inventory)`(상자·건물이 호출) / `CloseScreen()`(팝업이 호출)
+- **PlayerController에서 인벤 오케스트레이션 전부 제거** — OpenPlayerInventory/
+  OpenTargetInventory/CloseInventory/isInventoryOpen 삭제. 남은 건 `HaltMomentum()`(아바타 상태)뿐.
+  플레이어는 이제 화면을 중개하지 않는다 (마인크래프트식)
+- Chest는 `InventoryManager.OpenContainerScreen(자기 컨테이너)` 직접 호출 — player 인자 사용 안 함
+- 패널·UI 참조는 당분간 playerController 필드 경유 (UI 소유권 이관은 UI 담당과 협의 후)
+
 ### 남은 단계
-- ② InventoryScreen 도입 — 타겟이 화면을 직접 요청. PlayerController의
-  OpenPlayerInventory/OpenTargetInventory 제거 (플레이어가 UI를 중개하지 않게)
 - ③ IInteractiveBehavior(행동 opt-in, IBuildingBehavior와 같은 파일 컨벤션) +
   Entities.Building의 IInteractable 브리지 + Storage 컨테이너 열기 (ItemContainer↔UI 브리지)

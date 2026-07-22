@@ -13,7 +13,8 @@ public class Chest : Interactable
 
     public override void OnInteract(PlayerController player)
     {
-        // 플레이어에게 이 상자의 인벤토리를 열어달라고 요청합니다.
-        player.OpenTargetInventory(chestInventory);
+        // 인벤 화면 시스템에 이 상자의 컨테이너를 함께 열어달라고 요청 (플레이어는 중개하지 않음)
+        if (InventoryManager.Instance != null)
+            InventoryManager.Instance.OpenContainerScreen(chestInventory);
     }
 }

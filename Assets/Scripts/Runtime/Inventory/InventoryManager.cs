@@ -20,6 +20,52 @@ public class InventoryManager : MonoBehaviour
     private void Start()
     {
         if (mouseCarriageSlot != null) mouseCarriageSlot.ClearSlot();
+        CloseScreen();   // 시작 시 인벤 화면 닫힌 상태 보장
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // 인벤토리 화면 — 마인크래프트식: 타겟(상자·건물)이 화면을 직접 요청한다.
+    // 플레이어는 중개하지 않는다 (구 PlayerController.OpenPlayerInventory/OpenTargetInventory 대체).
+    // 패널·UI 참조는 당분간 playerController 필드 경유 — UI 소유권 이관은 UI 담당과 협의 후.
+    // ════════════════════════════════════════════════════════════════
+
+    public bool IsScreenOpen { get; private set; }
+
+    /// <summary>플레이어 가방만 열기 (I키).</summary>
+    public void OpenPlayerScreen() => OpenScreen(null);
+
+    /// <summary>컨테이너(상자·건물 보관함)와 함께 열기 — 타겟의 Interact()가 호출.</summary>
+    public void OpenContainerScreen(Inventory container) => OpenScreen(container);
+
+    private void OpenScreen(Inventory container)
+    {
+        if (playerController == null || IsScreenOpen) return;
+        IsScreenOpen = true;
+
+        playerController.HaltMomentum();   // 열리는 순간 수평 관성 제거
+
+        if (container != null && playerController.chestInventoryUI != null)
+        {
+            playerController.chestInventoryUI.inventory = container;
+            playerController.chestInventoryUI.gameObject.SetActive(true);
+            playerController.chestInventoryUI.RefreshAllUI();
+        }
+
+        // 패널 활성화 → InventoryPopup.OnEnable (UI 맵 Push + 커서/크로스헤어)
+        if (playerController.inventoryUIPanel != null) playerController.inventoryUIPanel.SetActive(true);
+        if (playerController.inventoryUI != null) playerController.inventoryUI.RefreshAllUI();
+    }
+
+    /// <summary>화면 닫기 — 손에 든 아이템은 월드로 드롭. InventoryPopup(ESC/I/E)이 호출.</summary>
+    public void CloseScreen()
+    {
+        DropMouseCarriageItem();
+        IsScreenOpen = false;
+
+        if (playerController == null) return;
+        // 패널 비활성화 → InventoryPopup.OnDisable (UI 맵 Pop + 커서/크로스헤어)
+        if (playerController.inventoryUIPanel != null) playerController.inventoryUIPanel.SetActive(false);
+        if (playerController.chestInventoryUI != null) playerController.chestInventoryUI.gameObject.SetActive(false);
     }
 
     private void Update()

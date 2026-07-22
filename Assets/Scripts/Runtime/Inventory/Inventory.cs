@@ -73,7 +73,14 @@ public class Inventory : MonoBehaviour
     }
 
     /// <summary>다른 컨테이너(건물 보관함 등)를 이 인벤토리의 뒷단으로 연결 — UI가 실시간으로 그 컨테이너를 본다.</summary>
-    public void Bind(ItemContainer external) => container = external;
+    public void Bind(ItemContainer external)
+    {
+        container = external;
+        if (external != null) slotCount = external.SlotCount;   // 인스펙터 표시·UI 계산 일관성
+    }
+
+    /// <summary>UI 전환 프레임의 스테일 인덱스(구 소켓 호버 등) 방어.</summary>
+    private bool InRange(int i) => i >= 0 && i < Container.SlotCount;
 
     // ── 위치 무관 연산 (루팅·드롭 등) ──────────────────────────
 
@@ -82,18 +89,21 @@ public class Inventory : MonoBehaviour
 
     // ── 위치(슬롯 인덱스) 연산 — UI 드래그·분할·교환용 위임 ──────
 
-    /// <summary>슬롯의 스택 (없으면 null). amount를 직접 수정했다면 Touch()를 호출할 것.</summary>
-    public ItemStack GetAt(int i) => Container.PeekAt(i);
+    /// <summary>슬롯의 스택 (없거나 범위 밖이면 null). amount를 직접 수정했다면 Touch()를 호출할 것.</summary>
+    public ItemStack GetAt(int i) => InRange(i) ? Container.PeekAt(i) : null;
 
     /// <summary>슬롯의 스택을 통째로 꺼낸다 (픽업).</summary>
-    public ItemStack TakeAt(int i) => Container.TakeAt(i);
+    public ItemStack TakeAt(int i) => InRange(i) ? Container.TakeAt(i) : null;
 
     /// <summary>빈 슬롯에 놓기. 규칙 위반이면 false.</summary>
-    public bool TryPutAt(int i, ItemStack stack) => Container.TryPutAt(i, stack);
+    public bool TryPutAt(int i, ItemStack stack) => InRange(i) && Container.TryPutAt(i, stack);
 
     /// <summary>슬롯 스택과 교환 (스왑). 규칙 위반이면 false.</summary>
     public bool TryExchangeAt(int i, ItemStack incoming, out ItemStack previous)
-        => Container.TryExchangeAt(i, incoming, out previous);
+    {
+        previous = null;
+        return InRange(i) && Container.TryExchangeAt(i, incoming, out previous);
+    }
 
     /// <summary>인플레이스 amount 수정 후 변경 통지 (UI 갱신 판단용).</summary>
     public void Touch() => Container.Touch();

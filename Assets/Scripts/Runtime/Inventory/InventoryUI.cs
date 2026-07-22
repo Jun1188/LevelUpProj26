@@ -31,7 +31,7 @@ public class InventoryUI : MonoBehaviour
 
         // 🔥 [대폭 최적화] 기본값은 인벤토리의 처음(0)부터 끝(slotCount - 1)까지입니다.
         int start = 0;
-        int end = inventory.slotCount - 1;
+        int end = inventory.SlotCount - 1;   // 실제 컨테이너 크기 (Bind된 건물 보관함은 slotCount 필드와 다름)
 
         // 오직 '플레이어 메인 가방 UI'일 때만 자동으로 앞부분(핫바)을 건너뜁니다!
         if (isPlayerMainInventory && HotbarController.Instance != null)
@@ -61,7 +61,7 @@ public class InventoryUI : MonoBehaviour
 
         // 🔥 새로고침할 때도 동일하게 범위를 자동 계산합니다.
         int start = 0;
-        int end = inventory.slotCount - 1;
+        int end = inventory.SlotCount - 1;   // 실제 컨테이너 크기 (Bind된 건물 보관함은 slotCount 필드와 다름)
 
         if (isPlayerMainInventory && HotbarController.Instance != null)
         {

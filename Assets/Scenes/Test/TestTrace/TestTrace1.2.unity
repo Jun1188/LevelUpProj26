@@ -151,11 +151,13 @@ MonoBehaviour:
   gridManager: {fileID: 2043003562}
   flowFieldManager: {fileID: 404053344}
   spawnManager:
-    monsterPrefab: {fileID: 0}
+    monsterPrefab: {fileID: 1332241365330258894, guid: a0ab261b89819e4489aaf424fc926d00, type: 3}
     baseMaxAlive: 4
     maxAlivePerDay: 2
     spawnInterval: 2
-    spawnHeight: 0.5
+    spawnHeight: 0
+  playerMaxHealth: 300
+  playerDetectionRange: 5
 --- !u!4 &34708785
 Transform:
   m_ObjectHideFlags: 0
@@ -183,7 +185,7 @@ GameObject:
   - component: {fileID: 230555477}
   - component: {fileID: 230555476}
   - component: {fileID: 230555475}
-  - component: {fileID: 230555474}
+  - component: {fileID: 230555479}
   m_Layer: 0
   m_Name: Tower_W
   m_TagString: Untagged
@@ -191,33 +193,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &230555474
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 230555473}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b0da024ba47965d448ff08618b2548ed, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Entities.Building
-  moveSpeed: 5
-  deathDelay: 2
-  destroyOnDeath: 1
-  health:
-    maxHealth: 200
-  isCore: 0
-  canAttack: 1
-  combat:
-    attackDamage: 15
-    attackRange: 3.5
-    attackCooldown: 2
-  sensor:
-    detectionRange: 4
-    targetLayerName: Monster
-    scanInterval: 0.2
 --- !u!23 &230555475
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -311,6 +286,36 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &230555479
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 230555473}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d9472e7ff2d296e4da0006b1f8c75464, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Entities.BattleTower
+  moveSpeed: 5
+  deathDelay: 2
+  destroyOnDeath: 1
+  health:
+    maxHealth: 200
+  isCore: 0
+  combat:
+    attackDamage: 15
+    attackRange: 3.5
+    attackCooldown: 2
+  sensor:
+    detectionRange: 4
+    targetLayerName: Monster
+    scanInterval: 0.2
+  bulletPrefab: {fileID: 0}
+  bulletSpeed: 25
+  bulletLifetime: 3
+  muzzleHeight: 1.2
 --- !u!1 &404053343
 GameObject:
   m_ObjectHideFlags: 0
@@ -671,7 +676,7 @@ GameObject:
   - component: {fileID: 1128499388}
   - component: {fileID: 1128499387}
   - component: {fileID: 1128499386}
-  - component: {fileID: 1128499385}
+  - component: {fileID: 1128499390}
   m_Layer: 0
   m_Name: Tower_E
   m_TagString: Untagged
@@ -679,33 +684,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1128499385
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1128499384}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b0da024ba47965d448ff08618b2548ed, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Entities.Building
-  moveSpeed: 5
-  deathDelay: 2
-  destroyOnDeath: 1
-  health:
-    maxHealth: 200
-  isCore: 0
-  canAttack: 1
-  combat:
-    attackDamage: 15
-    attackRange: 3.5
-    attackCooldown: 2
-  sensor:
-    detectionRange: 4
-    targetLayerName: Monster
-    scanInterval: 0.2
 --- !u!23 &1128499386
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -799,6 +777,36 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1128499390
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1128499384}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d9472e7ff2d296e4da0006b1f8c75464, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Entities.BattleTower
+  moveSpeed: 5
+  deathDelay: 2
+  destroyOnDeath: 1
+  health:
+    maxHealth: 200
+  isCore: 0
+  combat:
+    attackDamage: 15
+    attackRange: 3.5
+    attackCooldown: 2
+  sensor:
+    detectionRange: 4
+    targetLayerName: Monster
+    scanInterval: 0.2
+  bulletPrefab: {fileID: 0}
+  bulletSpeed: 25
+  bulletLifetime: 3
+  muzzleHeight: 1.2
 --- !u!1 &1602282509
 GameObject:
   m_ObjectHideFlags: 0
@@ -837,15 +845,6 @@ MonoBehaviour:
   health:
     maxHealth: 500
   isCore: 1
-  canAttack: 0
-  combat:
-    attackDamage: 10
-    attackRange: 1.5
-    attackCooldown: 2
-  sensor:
-    detectionRange: 10
-    targetLayerName: Monster
-    scanInterval: 0.2
 --- !u!23 &1602282511
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -951,7 +950,7 @@ GameObject:
   - component: {fileID: 1888209748}
   - component: {fileID: 1888209747}
   - component: {fileID: 1888209746}
-  - component: {fileID: 1888209745}
+  - component: {fileID: 1888209750}
   m_Layer: 0
   m_Name: Tower_S
   m_TagString: Untagged
@@ -959,33 +958,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1888209745
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1888209744}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b0da024ba47965d448ff08618b2548ed, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Entities.Building
-  moveSpeed: 5
-  deathDelay: 2
-  destroyOnDeath: 1
-  health:
-    maxHealth: 200
-  isCore: 0
-  canAttack: 1
-  combat:
-    attackDamage: 15
-    attackRange: 3.5
-    attackCooldown: 2
-  sensor:
-    detectionRange: 4
-    targetLayerName: Monster
-    scanInterval: 0.2
 --- !u!23 &1888209746
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -1079,6 +1051,36 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1888209750
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1888209744}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d9472e7ff2d296e4da0006b1f8c75464, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Entities.BattleTower
+  moveSpeed: 5
+  deathDelay: 2
+  destroyOnDeath: 1
+  health:
+    maxHealth: 200
+  isCore: 0
+  combat:
+    attackDamage: 15
+    attackRange: 3.5
+    attackCooldown: 2
+  sensor:
+    detectionRange: 4
+    targetLayerName: Monster
+    scanInterval: 0.2
+  bulletPrefab: {fileID: 0}
+  bulletSpeed: 25
+  bulletLifetime: 3
+  muzzleHeight: 1.2
 --- !u!1 &1936539244
 GameObject:
   m_ObjectHideFlags: 0
@@ -1278,7 +1280,7 @@ GameObject:
   - component: {fileID: 2101333494}
   - component: {fileID: 2101333493}
   - component: {fileID: 2101333492}
-  - component: {fileID: 2101333491}
+  - component: {fileID: 2101333496}
   m_Layer: 0
   m_Name: Tower_N
   m_TagString: Untagged
@@ -1286,33 +1288,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &2101333491
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2101333490}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b0da024ba47965d448ff08618b2548ed, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Entities.Building
-  moveSpeed: 5
-  deathDelay: 2
-  destroyOnDeath: 1
-  health:
-    maxHealth: 200
-  isCore: 0
-  canAttack: 1
-  combat:
-    attackDamage: 15
-    attackRange: 3.5
-    attackCooldown: 2
-  sensor:
-    detectionRange: 4
-    targetLayerName: Monster
-    scanInterval: 0.2
 --- !u!23 &2101333492
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -1406,6 +1381,36 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2101333496
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2101333490}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d9472e7ff2d296e4da0006b1f8c75464, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Entities.BattleTower
+  moveSpeed: 5
+  deathDelay: 2
+  destroyOnDeath: 1
+  health:
+    maxHealth: 200
+  isCore: 0
+  combat:
+    attackDamage: 15
+    attackRange: 3.5
+    attackCooldown: 2
+  sensor:
+    detectionRange: 4
+    targetLayerName: Monster
+    scanInterval: 0.2
+  bulletPrefab: {fileID: 0}
+  bulletSpeed: 25
+  bulletLifetime: 3
+  muzzleHeight: 1.2
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

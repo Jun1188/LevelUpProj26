@@ -3,8 +3,8 @@ using UnityEngine;
 
 namespace Entities
 {
-    // 건물 엔티티 — 심 건물의 씬 표현이자 전투 주체 (구 BuildingDamageable/BuildingView 통합·대체).
-    // 이동은 없고, 몬스터에게 피격되는 HP와 (canAttack 건물 한정) 자동 공격을 가진다.
+    // 건물 엔티티 — 심 건물의 씬 표현이자 피격 주체 (구 BuildingDamageable/BuildingView 통합·대체).
+    // 이동은 없고, 몬스터에게 피격되는 HP를 가진다. 자동 공격은 BattleTower(상속)가 담당.
     // HP 0 → die: 심 제거(PlacementBridge.Remove) + GameObject 소멸 + 플로우필드 갱신.
     //
     // 이름 충돌 주의: 팩토리 심의 plain C# Building(전역 네임스페이스)과 구분하기 위해
@@ -16,17 +16,10 @@ namespace Entities
         [Tooltip("맵 중앙의 코어인지 여부. 플로우필드에서 타워보다 우선하는 최종 목표가 된다.")]
         [SerializeField] private bool isCore;
 
-        [Tooltip("공격 가능한 건물(타워)인지 여부. 켜면 사거리 내 몬스터를 자동 공격한다.")]
-        [SerializeField] private bool canAttack;
-        [SerializeField] private CombatComponent combat = new CombatComponent();
-        [SerializeField] private SensorComponent sensor = new SensorComponent();
-
         // 이 엔티티가 대변하는 팩토리 심 건물(plain C#). PlacementBridge가 배치 시 연결한다.
         public global::Building Sim { get; set; }
 
         public bool IsCore => isCore;
-        public override CombatComponent Combat => canAttack ? combat : null;
-        public override SensorComponent Sensor => sensor;
         public override bool IsDead => base.IsDead || (Sim != null && Sim.IsRemoved);
 
         // ── 플레이어 상호작용(E) — 행동이 IInteractiveBehavior를 구현한 건물만 반응 (opt-in)
@@ -44,12 +37,6 @@ namespace Entities
         // 코어 파괴 = 게임오버 조건. BattleManager가 구독한다.
         public static event System.Action<Building> CoreDestroyed;
 
-        protected override void Awake()
-        {
-            base.Awake();
-            sensor.Initialize(this);
-        }
-
         private void OnEnable()
         {
             all.Add(this);
@@ -61,20 +48,6 @@ namespace Entities
         {
             all.Remove(this);
             if (FlowFieldManager.Instance != null) FlowFieldManager.Instance.MarkDirty();
-        }
-
-        protected override void Update()
-        {
-            base.Update();
-            if (!canAttack || IsDead) return;
-
-            // 쿨다운이 준비됐을 때만 스캔해 OverlapSphere 낭비를 줄인다 (타워 자동 공격)
-            if (!combat.CanAttack()) return;
-            Entity target = sensor.GetClosestTarget(combat.AttackRange);
-            if (target.IsValidTarget())
-            {
-                combat.TryAttack(target);
-            }
         }
 
         // HP 0 → 몬스터의 사망 연출 지연 없이 즉시 소멸

@@ -11,12 +11,21 @@ public class CombatComponent
 
     private float lastAttackTime = float.MinValue;
 
+    public float AttackDamage => attackDamage;
     public float AttackRange => attackRange;
     public float AttackCooldown => attackCooldown;
 
     public event Action OnAttackAction;
 
     public bool CanAttack() => Time.time >= lastAttackTime + attackCooldown;
+
+    // 데미지를 직접 주지 않는 공격(투사체 발사 등)이 쿨다운만 소비할 때 사용.
+    // 데미지는 발사체(Bullet)가 명중 시 전달한다.
+    public void MarkAttackPerformed()
+    {
+        lastAttackTime = Time.time;
+        OnAttackAction?.Invoke();
+    }
 
     public void TryAttack(Entity target)
     {

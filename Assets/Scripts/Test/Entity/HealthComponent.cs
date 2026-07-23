@@ -38,6 +38,15 @@ public class HealthComponent
         }
     }
 
+    // 런타임 부착 엔티티(EnsurePlayerEntity 등)의 최대 체력 조정용 — 인스펙터를 못 쓰는 경우 사용
+    public void SetMaxHealth(float newMaxHealth, bool refill = true)
+    {
+        maxHealth = Mathf.Max(1f, newMaxHealth);
+        if (refill && !IsDead) currentHealth = maxHealth;
+        else currentHealth = Mathf.Min(currentHealth, maxHealth);
+        OnHealthChanged?.Invoke(currentHealth, maxHealth);
+    }
+
     public void Heal(float healAmount)
     {
         if (IsDead) return;

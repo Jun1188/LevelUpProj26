@@ -20,6 +20,9 @@ public class GridManager : MonoBehaviour
     public Vector3 originPosition;    // 그리드의 시작점 (왼쪽 아래) (mapBounds 지정 시 자동 계산됨)
     private Node[,] grid;
 
+    // 지면 윗면의 월드 y — 스폰 위치 스냅용. mapBounds가 있으면 그 콜라이더의 최상단.
+    public float SurfaceY { get; private set; }
+
     // GridSystem 로직을 래핑할 변수
     private GridSystem gridSystem;
     void Awake()
@@ -37,6 +40,7 @@ public class GridManager : MonoBehaviour
         if (mapBounds != null)
         {
             Bounds b = mapBounds.bounds;
+            SurfaceY = b.max.y;
             originPosition = new Vector3(b.min.x, originPosition.y, b.min.z);
             gridSize = new Vector2Int(
                 Mathf.Max(1, Mathf.FloorToInt(b.size.x / cellSize)),
@@ -46,6 +50,7 @@ public class GridManager : MonoBehaviour
         }
         else
         {
+            SurfaceY = originPosition.y;
             Debug.LogWarning("[GridManager] mapBounds가 비어 있어 수동 gridSize/originPosition을 사용합니다. " +
                 "그리드가 맵보다 크면 경로가 맵 밖으로 설정될 수 있습니다.");
         }
@@ -72,17 +77,20 @@ public class GridManager : MonoBehaviour
             }
         }
     }
+    // 심(PlacementSystem) 좌표계 변환기 — GridManager와 origin/cellSize가 달라도
+    // 월드 좌표를 거쳐 심의 GridIndex 셀로 정확히 변환한다 (MainScene 통합용).
+    private GridSystem simGridSystem;
+
     void Start()
     {
-        // PlacementSystem과 그리드 설정이 다르면 Node.gridCoord와 심 GridIndex의 셀 좌표가 어긋난다
         var placement = FindObjectOfType<PlacementSystem>();
-        if (placement != null &&
-            (!Mathf.Approximately(placement.CellSize, cellSize) || placement.GridOrigin != originPosition))
+        if (placement != null)
         {
-            Debug.LogWarning($"[GridManager] PlacementSystem과 그리드 설정 불일치! " +
-                $"GridManager(cellSize={cellSize}, origin={originPosition}) vs " +
-                $"PlacementSystem(cellSize={placement.CellSize}, origin={placement.GridOrigin}). " +
-                $"건물 회피 길찾기가 잘못된 셀을 참조합니다.");
+            simGridSystem = new GridSystem(placement.CellSize, placement.GridOrigin);
+            if (!Mathf.Approximately(placement.CellSize, cellSize) || placement.GridOrigin != originPosition)
+                Debug.Log($"[GridManager] PlacementSystem과 그리드 설정이 달라 월드좌표 변환을 사용합니다. " +
+                    $"GridManager(cellSize={cellSize}, origin={originPosition}) vs " +
+                    $"PlacementSystem(cellSize={placement.CellSize}, origin={placement.GridOrigin}).");
         }
     }
 
@@ -93,8 +101,14 @@ public class GridManager : MonoBehaviour
         if (!ignoreBuildings)
         {
             var boot = FactoryBootstrap.Instance;
-            if (boot != null && boot.Sim != null &&
-                boot.Sim.Grid.IsOccupied(node.gridCoord)) return false;
+            if (boot != null && boot.Sim != null)
+            {
+                // 심 그리드는 PlacementSystem 좌표계 — 변환기가 있으면 월드 좌표 경유로 셀을 맞춘다
+                Vector2Int simCell = simGridSystem != null
+                    ? simGridSystem.WorldToGrid(node.worldPosition)
+                    : node.gridCoord;
+                if (boot.Sim.Grid.IsOccupied(simCell)) return false;
+            }
         }
         return true;
     }

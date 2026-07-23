@@ -37,20 +37,39 @@ public class BuildController : MonoBehaviour, IInputReceiver
         if (InputManager.Instance != null) InputManager.Instance.Unregister(this);
     }
 
+    // 밤에는 건설 금지 (낮=건설 페이즈, 밤=전투 페이즈). TimeManager 없는 씬은 항상 허용.
+    private static bool BuildingAllowed =>
+        TimeManager.Instance == null || TimeManager.Instance.IsBuildingAllowed;
+
     void Update()
     {
         pointerOverUI = EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
+
+        // 건설 모드 도중 밤이 되면 강제 종료
+        if (!BuildingAllowed && placement != null && placement.Mode != PlacementSystem.BuildMode.None)
+        {
+            placement.ExitMode();
+            Debug.Log("[BuildController] 밤이 되어 건설 모드를 종료합니다.");
+        }
     }
 
     public bool OnInput(in InputEvent e)
     {
         if (e.Phase != InputActionPhase.Performed) return false;
 
-        // 모드 토글은 대기 상태에서도 받는다
+        // 모드 토글은 대기 상태에서도 받는다 — 단, 밤에는 건설/철거 진입 불가
         switch (e.Id)
         {
-            case InputActionId.ToggleBuild:    placement.ToggleBuildMode();    return true;
-            case InputActionId.ToggleDemolish: placement.ToggleDemolishMode(); return true;
+            case InputActionId.ToggleBuild:
+            case InputActionId.ToggleDemolish:
+                if (!BuildingAllowed)
+                {
+                    Debug.Log("[BuildController] 밤에는 건설할 수 없습니다. (아침까지 대기 또는 H로 전환)");
+                    return true; // 신호는 소비 — 사격 등으로 새지 않게
+                }
+                if (e.Id == InputActionId.ToggleBuild) placement.ToggleBuildMode();
+                else placement.ToggleDemolishMode();
+                return true;
         }
 
         if (placement.Mode == PlacementSystem.BuildMode.None) return false;   // 이하는 모드 활성 중에만

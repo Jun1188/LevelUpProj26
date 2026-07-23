@@ -14,6 +14,14 @@ public class BattleManager : MonoBehaviour
     [SerializeField] private FlowFieldManager flowFieldManager;
     [SerializeField] private MonsterSpawnManager spawnManager = new MonsterSpawnManager();
 
+    [Tooltip("런타임 부착되는 Player 엔티티의 최대 체력. 0 이하면 HealthComponent 기본값(100)을 쓴다.")]
+    [SerializeField] private float playerMaxHealth = 300f;
+
+    [Tooltip("런타임 부착 Player의 몬스터 감지 범위. 기본값(10)이면 밤에 몬스터 전원이 플레이어에게 몰리므로 좁힌다. 0 이하면 기본값 유지.")]
+    [SerializeField] private float playerDetectionRange = 5f;
+
+    private Player playerEntity; // 아침 부활 처리용 캐시
+
     public GridManager Grid => gridManager;
     public FlowFieldManager FlowField => flowFieldManager;
     public MonsterSpawnManager Spawner => spawnManager;
@@ -81,6 +89,11 @@ public class BattleManager : MonoBehaviour
         var player = controller.gameObject.AddComponent<Player>();
         // FPS 플레이어는 카메라/UI가 하위에 있어 Destroy 대신 비활성화로 사망 처리
         player.SetDeathBehavior(destroy: false, delay: 2f);
+        // 런타임 부착이라 인스펙터로 HP/감지 범위를 못 만지므로 여기서 설정
+        if (playerMaxHealth > 0f) player.Health.SetMaxHealth(playerMaxHealth);
+        if (playerDetectionRange > 0f && player.Sensor != null)
+            player.Sensor.SetDetectionRange(playerDetectionRange);
+        playerEntity = player;
         Debug.Log("[BattleManager] PlayerController에 Player 엔티티를 런타임 부착했습니다.");
     }
 
@@ -108,5 +121,15 @@ public class BattleManager : MonoBehaviour
         // 아침 — 스폰 중단 + 살아남은 군집 일괄 소멸
         spawnManager.SetSpawningEnabled(false);
         spawnManager.DespawnAll();
+        RevivePlayerIfDead();
+    }
+
+    // 밤에 전사한 플레이어를 아침에 부활 — FPS 카메라가 플레이어 하위라 죽은 채 두면 시점이 사라진다
+    private void RevivePlayerIfDead()
+    {
+        if (playerEntity == null || !playerEntity.IsDead) return;
+        playerEntity.gameObject.SetActive(true);
+        playerEntity.Health.Initialize(); // IsDead 해제 + HP 전량 회복
+        Debug.Log("[BattleManager] 아침 — 플레이어 부활 (HP 전량 회복)");
     }
 }

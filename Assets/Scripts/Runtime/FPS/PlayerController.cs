@@ -10,8 +10,11 @@ using UnityEngine.InputSystem;
 ///  - isInventoryOpen 입력 가드 삭제 — 팝업이 UI 맵을 Push하면 Gameplay 신호가 원천 차단되고,
 ///    폴링도 비활성 맵에서 0을 반환하므로 이동/시점이 저절로 멎는다
 ///  - 커서/크로스헤어 부수효과 → InventoryPopup의 Enter/Exit (PausePopup과 같은 패턴)
+///
+/// Entity 상속 제거: HP/감지/전투는 같은 GO에 붙는 Player(엔티티) 컴포넌트가 전담한다
+/// (BattleManager.EnsurePlayerEntity가 런타임 부착). 이 클래스는 조작만 담당.
 /// </summary>
-public class PlayerController : Entity, IInputReceiver
+public class PlayerController : MonoBehaviour, IInputReceiver
 {
     #region [1. Variables - Inspector Settings]
 
@@ -25,6 +28,7 @@ public class PlayerController : Entity, IInputReceiver
     private float cameraRotationX = 0f;
 
     [Header("Movement Settings")]
+    public float moveSpeed = 5f;   // 구 Entity.moveSpeed — 상속 제거로 로컬 필드화
     public float jumpForce = 10f;
 
     [Header("Gun & Combat Settings")]
@@ -85,13 +89,10 @@ public class PlayerController : Entity, IInputReceiver
 
     #region [3. Unity Lifecycle]
 
-    protected override void Start()
+    private void Start()
     {
-        base.Start();
-
         Cursor.lockState = CursorLockMode.Locked;   // 시작 시 패널이 이미 닫혀 있으면 팝업 Exit이 안 불리므로 직접 잠금
         // (인벤 화면의 시작 닫힘 보장은 InventoryManager.Start의 CloseScreen이 담당)
-        moveSpeed = 5f;
 
         if (InputManager.Instance != null) InputManager.Instance.Register(this);
         else Debug.LogError("[PlayerController] 씬에 InputManager가 없습니다.", this);
@@ -106,15 +107,19 @@ public class PlayerController : Entity, IInputReceiver
         }
     }
 
+    // 사망(GO 비활성화) 후 부활 시 리시버 재등록 — Register는 중복 안전
+    private void OnEnable()
+    {
+        if (InputManager.Instance != null) InputManager.Instance.Register(this);
+    }
+
     private void OnDisable()
     {
         if (InputManager.Instance != null) InputManager.Instance.Unregister(this);
     }
 
-    protected override void Update()
+    private void Update()
     {
-        base.Update();
-
         // 연속 입력 폴링 — 소속 맵이 비활성(팝업 열림)이면 0이 읽힌다
         if (InputManager.Instance != null)
         {
@@ -182,7 +187,7 @@ public class PlayerController : Entity, IInputReceiver
     #region [6. Movement Support]
 
     // 인벤 화면 열기/닫기는 InventoryManager 소유 (마인크래프트식 — 타겟이 화면을 요청).
-    // 여기엔 아바타 상태 조작만 남는다.
+    // 밤 인벤 금지(팀원 추가)도 그쪽 OpenScreen으로 이식됨. 여기엔 아바타 상태 조작만 남는다.
 
     /// <summary>화면이 열리는 순간 수평 관성 제거 — 열림 중 이동 입력은 맵 비활성으로 이미 0</summary>
     public void HaltMomentum()

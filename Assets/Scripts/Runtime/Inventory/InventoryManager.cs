@@ -31,6 +31,11 @@ public class InventoryManager : MonoBehaviour
 
     public bool IsScreenOpen { get; private set; }
 
+    // 밤에는 인벤토리 사용 금지 (낮=건설/정비, 밤=전투) — 팀원 추가 기능을 화면 소유자로 이식.
+    // TimeManager 없는 씬은 항상 허용.
+    private static bool InventoryAllowed =>
+        TimeManager.Instance == null || TimeManager.Instance.IsBuildingAllowed;
+
     /// <summary>플레이어 가방만 열기 (I키).</summary>
     public void OpenPlayerScreen() => OpenScreen(null);
 
@@ -59,6 +64,11 @@ public class InventoryManager : MonoBehaviour
     private void OpenScreen(Inventory container)
     {
         if (playerController == null || IsScreenOpen) return;
+        if (!InventoryAllowed)
+        {
+            Debug.Log("[InventoryManager] 밤에는 인벤토리를 열 수 없습니다.");
+            return;
+        }
         IsScreenOpen = true;
 
         playerController.HaltMomentum();   // 열리는 순간 수평 관성 제거

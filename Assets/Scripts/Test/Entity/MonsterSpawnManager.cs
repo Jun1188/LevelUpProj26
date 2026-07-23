@@ -20,8 +20,8 @@ public class MonsterSpawnManager
     [Tooltip("스폰 시도 간격(초). 상한에 걸리면 스폰하지 않는다.")]
     [SerializeField] private float spawnInterval = 2f;
 
-    [Tooltip("스폰 높이 보정 — 지면 노드 위로 띄우는 값.")]
-    [SerializeField] private float spawnHeight = 0.5f;
+    [Tooltip("스폰 높이 보정 — 지면 스냅 후 추가로 띄우는 값. 콜라이더 스냅이 되면 0이어도 바닥에 정확히 선다.")]
+    [SerializeField] private float spawnHeight = 0f;
 
     private GridManager grid;
     private Transform parent;
@@ -111,10 +111,19 @@ public class MonsterSpawnManager
             ? UnityEngine.Object.Instantiate(monsterPrefab, position, Quaternion.identity, parent)
             : CreateFallbackMonster(position);
 
+        SnapToGround(go);
+
         // 프리팹 레이어 설정 실수 방지 — Default면 Monster 레이어로 교정 (플레이어/타워 센서 감지용)
         int monsterLayer = LayerMask.NameToLayer("Monster");
         if (monsterLayer >= 0 && go.layer == 0)
             SetLayerRecursively(go.transform, monsterLayer);
+
+        // 이동은 transform 구동이므로 물리 반응은 불필요 — kinematic RB는 움직이는 콜라이더의
+        // 총알 충돌/트리거 이벤트를 안정적으로 받기 위한 관례적 부착
+        var rb = go.GetComponent<Rigidbody>();
+        if (rb == null) rb = go.AddComponent<Rigidbody>();
+        rb.isKinematic = true;
+        rb.useGravity = false;
 
         var monster = go.GetComponent<Monster>();
         if (monster == null) monster = go.AddComponent<Monster>();
@@ -141,7 +150,9 @@ public class MonsterSpawnManager
             };
             if (!grid.IsWalkable(cell)) continue;
 
-            position = grid.GetNode(cell).worldPosition + Vector3.up * spawnHeight;
+            // y는 지면 윗면 기준 — 실제 착지는 SnapToGround가 콜라이더 바닥을 맞춰준다
+            position = grid.GetNode(cell).worldPosition;
+            position.y = grid.SurfaceY;
             return true;
         }
         return false;
@@ -156,6 +167,25 @@ public class MonsterSpawnManager
         go.transform.position = position;
         go.transform.localScale = new Vector3(0.6f, 0.6f, 0.6f);
         return go;
+    }
+
+    // 콜라이더 바닥이 지면 윗면(SurfaceY)에 닿도록 y를 보정 — 바닥 밑 스폰 방지.
+    // 몬스터 이동(MovementComponent)은 transform y를 유지하므로 스폰 시 한 번만 맞추면 된다.
+    private void SnapToGround(GameObject go)
+    {
+        float surfaceY = grid != null ? grid.SurfaceY : go.transform.position.y;
+        var col = go.GetComponentInChildren<Collider>();
+        if (col != null)
+        {
+            float bottom = col.bounds.min.y;
+            go.transform.position += Vector3.up * (surfaceY - bottom + 0.02f + spawnHeight);
+        }
+        else
+        {
+            var pos = go.transform.position;
+            pos.y = surfaceY + spawnHeight;
+            go.transform.position = pos;
+        }
     }
 
     private static void SetLayerRecursively(Transform t, int layer)

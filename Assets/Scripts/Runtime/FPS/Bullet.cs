@@ -14,18 +14,22 @@ public class Bullet : MonoBehaviour
     private float lifetime;
     private float damage;
     private int targetMask; // 데미지를 적용할 레이어 마스크 (0이면 데미지 없음, 소멸만)
+    private float range;
+    private Vector3 start;
 
     public void SetPool(IObjectPool<GameObject> pool)
     {
         managedPool = pool;
     }
 
-    public void Setup(float speed, float lifetime, float damage = 0f, int targetMask = 0)
+    public void Setup(float speed, float lifetime, float damage = 0f, int targetMask = 0, float range = 10)
     {
         this.speed = speed;
         this.lifetime = lifetime;
         this.damage = damage;
         this.targetMask = targetMask;
+        this.range = range;
+        start = transform.position;
 
         // 이전 예치된 Invoke 취소 후 재등록
         CancelInvoke(nameof(ReleaseToPool));
@@ -36,6 +40,10 @@ public class Bullet : MonoBehaviour
     {
         // 전방으로 비행
         transform.Translate(Vector3.forward * speed * Time.deltaTime);
+        if(Vector3.Distance(start, transform.position) >= range)
+        {
+            ReleaseToPool();
+        }
     }
 
     private void OnCollisionEnter(Collision collision)

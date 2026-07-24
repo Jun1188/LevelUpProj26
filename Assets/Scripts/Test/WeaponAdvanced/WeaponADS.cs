@@ -12,6 +12,9 @@ public class WeaponADS : MonoBehaviour, IWeaponMotionModule
     public Vector3 PositionOffset { get; private set; }
     public Quaternion RotationOffset { get; private set; } = Quaternion.identity;
 
+    public Camera camera;
+    public float defaultFov;
+    public float targetFov;
     // ★ 수정됨: WeaponManager에서 무기를 스왑할 때 호출하여 새 무기의 sightPoint 등록
     public void SetupWeapon(Transform newSightPoint)
     {
@@ -34,5 +37,7 @@ public class WeaponADS : MonoBehaviour, IWeaponMotionModule
 
         PositionOffset = Vector3.Lerp(PositionOffset, destPos, Time.deltaTime * aimSpeed);
         RotationOffset = Quaternion.Slerp(RotationOffset, destRot, Time.deltaTime * aimSpeed);
+
+        camera.fieldOfView = Mathf.Lerp(camera.fieldOfView, isAiming ? targetFov : defaultFov, Time.deltaTime * aimSpeed);
     }
 }

@@ -15,7 +15,9 @@ public class GunData : ScriptableObject
     public float fireRate = 0.2f;        // 연사 속도 (낮을수록 빠름)
     public float bulletSpeed = 50f;
     public float maxRange = 100f;
-    public GameObject bulletPrefab;
+    public GameObject bulletPrefab; 
+    public float range; 
+    public LayerMask enemyLayer; 
 
     [Header("Ammo & Reload Settings")]
     public int magSize = 30;

@@ -82,6 +82,7 @@ public class WeaponController : MonoBehaviour, IInputReceiver
                 if (e.Phase == InputActionPhase.Performed)
                 {
                     weaponManager.adsModule.isAiming = true;
+                    weaponManager.adsModule.targetFov = weapon.zoomFOV;
                     return true;
                 }
                 if (e.Phase == InputActionPhase.Canceled) weaponManager.adsModule.isAiming = false;

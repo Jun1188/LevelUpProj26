@@ -22,7 +22,7 @@ public class MachineProcessor : BaseProcessor
     {
         if (_building == null || currentRecipe == null) return false;
 
-        var snapshot = _building.Input.Snapshot(); // 전임자 버퍼 스냅샷 기능 사용[cite: 5]
+        var snapshot = _building.Input.Snapshot(); // 전임자 버퍼 스냅샷 기능 사용
         foreach (var input in currentRecipe.inputs)
         {
             int required = input.amount;
@@ -40,9 +40,9 @@ public class MachineProcessor : BaseProcessor
     {
         foreach (var input in currentRecipe.inputs)
         {
-            _building.Input.TryConsume(input.item, input.amount); // 전임자 버퍼 차감 기능 사용[cite: 5]
+            _building.Input.TryConsume(input.item, input.amount); // 전임자 버퍼 차감 기능 사용
         }
-        _building.NotifyUpstream(); // 상류 벨트 신호 갱신[cite: 5]
+        _building.NotifyUpstream(); // 상류 벨트 신호 갱신
     }
 
     protected override void GiveOutputs()
@@ -51,6 +51,6 @@ public class MachineProcessor : BaseProcessor
         {
             if (output.item != null) _building.Output.TryAdd(output.item, output.amount);
         }
-        _building.NotifyUpstream(); // 하류 벨트 신호 갱신[cite: 5]
+        _building.NotifyUpstream(); // 하류 벨트 신호 갱신
     }
 }

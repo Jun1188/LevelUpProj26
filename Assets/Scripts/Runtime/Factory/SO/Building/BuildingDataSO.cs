@@ -26,6 +26,19 @@ public enum BuildingCategory
     Defense,      // 방어 — 포탑 (밤 웨이브)
 }
 
+/// <summary>카테고리 표시명 — 빌드 메뉴·인스펙터가 공용.</summary>
+public static class BuildingCategoryNames
+{
+    public static string Korean(BuildingCategory c) => c switch
+    {
+        BuildingCategory.Production => "생산",
+        BuildingCategory.Logistics  => "물류",
+        BuildingCategory.Storage    => "저장",
+        BuildingCategory.Defense    => "방어",
+        _ => c.ToString(),
+    };
+}
+
 // ─── 방향 헬퍼 ─────────────────────────────────────────────────
 
 public static class Dir

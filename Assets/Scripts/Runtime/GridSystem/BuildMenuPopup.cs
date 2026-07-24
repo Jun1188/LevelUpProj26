@@ -17,13 +17,20 @@ public class BuildMenuPopup : UIPopup
     private static BuildMenuPopup instance;
 
     private PlacementSystem placement;
-    private readonly Dictionary<BuildingCategory, string> categoryLabels = new()
+
+    protected override void OnEnable()
     {
-        { BuildingCategory.Production, "생산" },
-        { BuildingCategory.Logistics,  "물류" },
-        { BuildingCategory.Storage,    "저장" },
-        { BuildingCategory.Defense,    "방어" },
-    };
+        base.OnEnable();   // 리시버 등록 + UI 맵 Push
+        Cursor.lockState = CursorLockMode.None;   // 메뉴 조작용 커서 해제 (PausePopup 패턴)
+        Cursor.visible = true;
+    }
+
+    protected override void OnDisable()
+    {
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+        base.OnDisable();
+    }
 
     /// <summary>메뉴 토글 — 최초 호출 시 Canvas 아래에 패널을 생성한다 (BuildController가 호출).</summary>
     public static void Toggle(PlacementSystem placement)
@@ -99,8 +106,7 @@ public class BuildMenuPopup : UIPopup
 
         foreach (var (category, items) in db.GroupedByCategory())
         {
-            string label = categoryLabels.TryGetValue(category, out var name) ? name : category.ToString();
-            MakeLabel(transform, label, 17, FontStyles.Bold);
+            MakeLabel(transform, BuildingCategoryNames.Korean(category), 17, FontStyles.Bold);
 
             var grid = new GameObject("Grid", typeof(RectTransform)).AddComponent<GridLayoutGroup>();
             grid.transform.SetParent(transform, false);

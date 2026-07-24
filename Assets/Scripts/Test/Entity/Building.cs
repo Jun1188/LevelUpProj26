@@ -3,14 +3,14 @@ using UnityEngine;
 
 namespace Entities
 {
-    // 건물 엔티티 — 구 IInteractable + BuildingDamageable + BuildingView의 기능 통합.
+    // 건물 엔티티 — 심 건물의 씬 표현이자 피격 주체 (구 BuildingDamageable/BuildingView 통합·대체).
     // 이동은 없고, 몬스터에게 피격되는 HP를 가진다. 자동 공격은 BattleTower(상속)가 담당.
     // HP 0 → die: 심 제거(PlacementBridge.Remove) + GameObject 소멸 + 플로우필드 갱신.
     //
     // 이름 충돌 주의: 팩토리 심의 plain C# Building(전역 네임스페이스)과 구분하기 위해
     // Entities 네임스페이스에 있다. 심 건물 참조는 global::Building(Sim 프로퍼티).
     // 코어처럼 심 없이 씬에 직접 배치하는 건물은 Sim이 null이어도 된다.
-    public class Building : Entity
+    public class Building : Entity, IInteractable
     {
         [Header("Building Settings")]
         [Tooltip("맵 중앙의 코어인지 여부. 플로우필드에서 타워보다 우선하는 최종 목표가 된다.")]
@@ -21,6 +21,14 @@ namespace Entities
 
         public bool IsCore => isCore;
         public override bool IsDead => base.IsDead || (Sim != null && Sim.IsRemoved);
+
+        // ── 플레이어 상호작용(E) — 행동이 IInteractiveBehavior를 구현한 건물만 반응 (opt-in)
+        public string Prompt => Sim?.Behavior is IInteractiveBehavior i ? i.InteractPrompt : null;
+
+        public void Interact(PlayerController player)
+        {
+            if (Sim?.Behavior is IInteractiveBehavior i) i.Interact(player);
+        }
 
         // 살아있는 건물 레지스트리 — 플로우필드 목표 수집과 몬스터의 사거리 검색용
         private static readonly List<Building> all = new List<Building>();
@@ -59,8 +67,7 @@ namespace Entities
         }
 
         // 심 건물(POCO) → 건물 엔티티 (구 BuildingDamageable.GetOrAttach).
-        // PlacementBridge가 모든 뷰에 BuildingView(: Entities.Building)를 붙이므로
-        // 뷰가 있으면 항상 건물 엔티티를 얻을 수 있다.
+        // PlacementBridge가 배치 시 모든 뷰 GO에 이 컴포넌트를 붙이고 매핑을 등록한다.
         public static Building GetOrAttach(global::Building sim)
         {
             if (sim == null || sim.IsRemoved) return null;
@@ -68,10 +75,9 @@ namespace Entities
             var boot = FactoryBootstrap.Instance;
             if (boot == null) return null;
 
-            var view = boot.GetView(sim);
-            if (view == null) return null; // 뷰 없는 심 전용 건물(테스트 등)은 공격 대상이 될 수 없음
+            var entity = boot.GetView(sim);
+            if (entity == null) return null; // 뷰 없는 심 전용 건물(테스트 등)은 공격 대상이 될 수 없음
 
-            Building entity = view; // BuildingView : Entities.Building
             if (entity.Sim == null) entity.Sim = sim;
             return entity;
         }

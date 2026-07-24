@@ -86,10 +86,76 @@ public class ItemContainer
 
     public bool HasRoomFor(ItemDataSO item, int n = 1) => RoomFor(item) >= n;
 
+    // ───────────────────────────────────────────────────────────
+    //  변경 추적 — UI가 "다시 그릴 필요가 있나"를 싸게 판단하는 용도.
+    //  내용이 바뀌는 모든 연산에서 증가한다. (인플레이스 amount 수정은
+    //  Touch()를 함께 호출할 것 — Inventory 어댑터가 담당)
+    // ───────────────────────────────────────────────────────────
+
+    public int Version { get; private set; }
+    public void Touch() => Version++;
+
+    // ───────────────────────────────────────────────────────────
+    //  위치(슬롯 인덱스) 연산 — 인벤토리 UI(드래그·분할·교환)용.
+    //  공장 물류(Tick·벨트)는 위의 위치 무관 API만 사용한다.
+    //  규칙(AcceptFilter/SingleStackPerType/스택 캡)은 여기서도 동일하게 지켜진다.
+    // ───────────────────────────────────────────────────────────
+
+    /// <summary>슬롯의 스택을 그대로 반환 (없으면 null). 반환된 스택의 amount를 직접 수정했다면 Touch() 필수.</summary>
+    public ItemStack PeekAt(int i) => _slots[i];
+
+    /// <summary>슬롯의 스택을 통째로 꺼낸다 (드래그 픽업). 없으면 null.</summary>
+    public ItemStack TakeAt(int i)
+    {
+        var s = _slots[i];
+        if (s == null) return null;
+        _slots[i] = null;
+        Touch();
+        return s;
+    }
+
+    /// <summary>빈 슬롯에 스택을 놓는다. 필터·종류당 1스택 규칙 위반이거나 슬롯이 차 있으면 false.</summary>
+    public bool TryPutAt(int i, ItemStack stack)
+    {
+        if (stack == null || stack.item == null || stack.amount <= 0) return false;
+        if (_slots[i] != null && _slots[i].item != null) return false;
+        if (!AllowsPlacement(stack.item, exceptSlot: i)) return false;
+
+        _slots[i] = stack;
+        Touch();
+        return true;
+    }
+
+    /// <summary>슬롯의 스택과 교환한다 (드래그 스왑). 들어갈 스택이 규칙 위반이면 false.</summary>
+    public bool TryExchangeAt(int i, ItemStack incoming, out ItemStack previous)
+    {
+        previous = null;
+        if (incoming == null || incoming.item == null) return false;
+        if (!AllowsPlacement(incoming.item, exceptSlot: i)) return false;
+
+        previous = _slots[i];
+        _slots[i] = incoming;
+        Touch();
+        return true;
+    }
+
+    /// <summary>이 아이템의 새 스택을 슬롯에 둘 수 있는가 (필터 + 종류당 1스택 검사).</summary>
+    bool AllowsPlacement(ItemDataSO item, int exceptSlot)
+    {
+        if (AcceptFilter != null && !AcceptFilter(item)) return false;
+        if (!SingleStackPerType) return true;
+
+        for (int j = 0; j < _slots.Length; j++)
+            if (j != exceptSlot && _slots[j] != null && _slots[j].item == item)
+                return false;
+        return true;
+    }
+
     /// <summary>n개 전량 수용 가능할 때만 추가. 기존 스택부터 채우고 빈 슬롯에 새 스택.</summary>
     public bool TryAdd(ItemDataSO item, int n = 1)
     {
         if (item == null || n <= 0 || !HasRoomFor(item, n)) return false;
+        Touch();
 
         foreach (var s in _slots)
         {
@@ -116,6 +182,7 @@ public class ItemContainer
     public bool TryConsume(ItemDataSO item, int n = 1)
     {
         if (item == null || n <= 0 || CountOf(item) < n) return false;
+        Touch();
 
         for (int i = _slots.Length - 1; i >= 0 && n > 0; i--) // 뒤쪽 스택부터 소진
         {

@@ -20,10 +20,94 @@ public class InventoryManager : MonoBehaviour
     private void Start()
     {
         if (mouseCarriageSlot != null) mouseCarriageSlot.ClearSlot();
+        CloseScreen();   // 시작 시 인벤 화면 닫힌 상태 보장
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // 인벤토리 화면 — 마인크래프트식: 타겟(상자·건물)이 화면을 직접 요청한다.
+    // 플레이어는 중개하지 않는다 (구 PlayerController.OpenPlayerInventory/OpenTargetInventory 대체).
+    // 패널·UI 참조는 당분간 playerController 필드 경유 — UI 소유권 이관은 UI 담당과 협의 후.
+    // ════════════════════════════════════════════════════════════════
+
+    public bool IsScreenOpen { get; private set; }
+
+    // 밤에는 인벤토리 사용 금지 (낮=건설/정비, 밤=전투) — 팀원 추가 기능을 화면 소유자로 이식.
+    // TimeManager 없는 씬은 항상 허용.
+    private static bool InventoryAllowed =>
+        TimeManager.Instance == null || TimeManager.Instance.Cycle.Phase == DayPhase.Day;
+
+    /// <summary>플레이어 가방만 열기 (I키).</summary>
+    public void OpenPlayerScreen() => OpenScreen(null);
+
+    /// <summary>컨테이너(상자·건물 보관함)와 함께 열기 — 타겟의 Interact()가 호출.</summary>
+    public void OpenContainerScreen(Inventory container) => OpenScreen(container);
+
+    /// <summary>
+    /// 심 컨테이너(건물 보관함)를 열기 — 프록시 Inventory에 Bind해서 UI가 같은 객체를 직접 본다.
+    /// 별도 동기화 없음: 공장이 넣는 것도, 플레이어가 꺼내는 것도 전부 그 컨테이너에서 일어난다.
+    /// </summary>
+    public void OpenContainerScreen(ItemContainer container)
+    {
+        if (container == null || playerController == null || IsScreenOpen) return;
+
+        if (containerProxy == null) containerProxy = gameObject.AddComponent<Inventory>();
+        containerProxy.Bind(container);
+        boundContainer = container;
+        lastSeenVersion = container.Version;
+        OpenScreen(containerProxy);
+    }
+
+    private Inventory containerProxy;        // 건물 컨테이너를 UI에 꽂기 위한 어댑터 (재사용)
+    private ItemContainer boundContainer;    // 열려 있는 동안 공장 측 변경 감지용
+    private int lastSeenVersion;
+
+    private void OpenScreen(Inventory container)
+    {
+        if (playerController == null || IsScreenOpen) return;
+        if (!InventoryAllowed)
+        {
+            Debug.Log("[InventoryManager] 밤에는 인벤토리를 열 수 없습니다.");
+            return;
+        }
+        IsScreenOpen = true;
+
+        playerController.HaltMomentum();   // 열리는 순간 수평 관성 제거
+
+        if (container != null && playerController.chestInventoryUI != null)
+        {
+            playerController.chestInventoryUI.inventory = container;
+            playerController.chestInventoryUI.gameObject.SetActive(true);
+            playerController.chestInventoryUI.RefreshAllUI();
+        }
+
+        // 패널 활성화 → InventoryPopup.OnEnable (UI 맵 Push + 커서/크로스헤어)
+        if (playerController.inventoryUIPanel != null) playerController.inventoryUIPanel.SetActive(true);
+        if (playerController.inventoryUI != null) playerController.inventoryUI.RefreshAllUI();
+    }
+
+    /// <summary>화면 닫기 — 손에 든 아이템은 월드로 드롭. InventoryPopup(ESC/I/E)이 호출.</summary>
+    public void CloseScreen()
+    {
+        DropMouseCarriageItem();
+        boundContainer = null;   // 건물 컨테이너 연결 해제 (Bind는 다음 열기 때 갱신)
+        IsScreenOpen = false;
+
+        if (playerController == null) return;
+        // 패널 비활성화 → InventoryPopup.OnDisable (UI 맵 Pop + 커서/크로스헤어)
+        if (playerController.inventoryUIPanel != null) playerController.inventoryUIPanel.SetActive(false);
+        if (playerController.chestInventoryUI != null) playerController.chestInventoryUI.gameObject.SetActive(false);
     }
 
     private void Update()
     {
+        // 건물 보관함이 열려 있는 동안 공장이 내용을 바꾸면(버전 변화) 화면 갱신
+        if (boundContainer != null && boundContainer.Version != lastSeenVersion)
+        {
+            lastSeenVersion = boundContainer.Version;
+            if (playerController != null && playerController.chestInventoryUI != null)
+                playerController.chestInventoryUI.RefreshAllUI();
+        }
+
         if (mouseCarriageItem != null && mouseCarriageItem.item != null && mouseCarriageItem.amount > 0)
         {
             mouseCarriageSlot.gameObject.SetActive(true);
@@ -44,24 +128,22 @@ public class InventoryManager : MonoBehaviour
             return;
         }
 
-        // 2. 드래그 앤 드롭 코드
+        // 2. 드래그 앤 드롭 코드 — 슬롯 조작은 전부 컨테이너 API 경유 (필터·스택 규칙 준수)
         if (mouseCarriageItem == null || mouseCarriageItem.item == null)
         {
-            if (inventory.slots[clickedIndex] != null && inventory.slots[clickedIndex].item != null)
-            {
-                mouseCarriageItem = inventory.slots[clickedIndex];
-                inventory.slots[clickedIndex] = null;
-            }
+            var picked = inventory.TakeAt(clickedIndex);
+            if (picked != null && picked.item != null) mouseCarriageItem = picked;
+            else if (picked != null) inventory.TryPutAt(clickedIndex, picked); // 빈 껍데기 스택은 되돌림
         }
         else
         {
             if (!IsSlotPlacementAllowed(inventory, clickedIndex, mouseCarriageItem.item)) return;
 
-            ItemStack targetSlot = inventory.slots[clickedIndex];
+            ItemStack targetSlot = inventory.GetAt(clickedIndex);
             if (targetSlot == null || targetSlot.item == null)
             {
-                inventory.slots[clickedIndex] = mouseCarriageItem;
-                mouseCarriageItem = null;
+                if (inventory.TryPutAt(clickedIndex, mouseCarriageItem))
+                    mouseCarriageItem = null;
             }
             else if (targetSlot.item == mouseCarriageItem.item)
             {
@@ -69,12 +151,13 @@ public class InventoryManager : MonoBehaviour
                 int toAdd = Mathf.Min(maxCanAdd, mouseCarriageItem.amount);
                 targetSlot.amount += toAdd;
                 mouseCarriageItem.amount -= toAdd;
+                inventory.Touch();
                 if (mouseCarriageItem.amount <= 0) mouseCarriageItem = null;
             }
             else
             {
-                inventory.slots[clickedIndex] = mouseCarriageItem;
-                mouseCarriageItem = targetSlot;
+                if (inventory.TryExchangeAt(clickedIndex, mouseCarriageItem, out var prev))
+                    mouseCarriageItem = prev;
             }
         }
 
@@ -96,7 +179,7 @@ public class InventoryManager : MonoBehaviour
     }
     public void HandleSlotRightClick(Inventory inventory, int clickedIndex, InventoryUI uiSource)
     {
-        ItemStack clickedBackendSlot = inventory.slots[clickedIndex];
+        ItemStack clickedBackendSlot = inventory.GetAt(clickedIndex);
 
         // Case 1: 마우스가 비어있을 때 -> 클릭한 슬롯 아이템의 절반을 마우스로 들기
         if (mouseCarriageItem == null || mouseCarriageItem.item == null)
@@ -104,13 +187,14 @@ public class InventoryManager : MonoBehaviour
             if (clickedBackendSlot != null && clickedBackendSlot.item != null && clickedBackendSlot.amount > 0)
             {
                 // 마인크래프트 방식: 홀수일 때 슬롯에 적게 남고 마우스에 더 많이 들리도록 올림(Ceil) 계산
-                int takeAmount = clickedBackendSlot.amount - (clickedBackendSlot.amount / 2); 
-                
+                int takeAmount = clickedBackendSlot.amount - (clickedBackendSlot.amount / 2);
+
                 mouseCarriageItem = new ItemStack(clickedBackendSlot.item, takeAmount);
                 clickedBackendSlot.amount -= takeAmount;
+                inventory.Touch();
 
-                if (clickedBackendSlot.amount <= 0) 
-                    inventory.slots[clickedIndex] = null;
+                if (clickedBackendSlot.amount <= 0)
+                    inventory.TakeAt(clickedIndex);
             }
         }
         // Case 2: 마우스에 아이템을 쥐고 있을 때 -> 슬롯에 1개씩 톡톡 내려놓기
@@ -122,14 +206,15 @@ public class InventoryManager : MonoBehaviour
             // 슬롯이 완전히 비어있을 때 -> 1개 복사해서 생성
             if (clickedBackendSlot == null || clickedBackendSlot.item == null)
             {
-                inventory.slots[clickedIndex] = new ItemStack(mouseCarriageItem.item, 1);
-                mouseCarriageItem.amount--;
+                if (inventory.TryPutAt(clickedIndex, new ItemStack(mouseCarriageItem.item, 1)))
+                    mouseCarriageItem.amount--;
             }
             // 슬롯에 같은 아이템이 있고, 최대 스택(64개) 미만일 때 -> 1개 추가
             else if (clickedBackendSlot.item == mouseCarriageItem.item && clickedBackendSlot.amount < clickedBackendSlot.maxStackSize)
             {
                 clickedBackendSlot.amount++;
                 mouseCarriageItem.amount--;
+                inventory.Touch();
             }
 
             // 마우스에 든 아이템을 다 썼으면 마우스 비우기
@@ -187,9 +272,9 @@ public class InventoryManager : MonoBehaviour
             activeSlotIndex = HotbarController.Instance.CurrentHotbarIndex;
         }
 
-        if (playerInventory.slots.Length > activeSlotIndex && activeSlotIndex >= 0)
+        if (playerInventory.SlotCount > activeSlotIndex && activeSlotIndex >= 0)
         {
-            ItemStack activeSlot = playerInventory.slots[activeSlotIndex];
+            ItemStack activeSlot = playerInventory.GetAt(activeSlotIndex);
             
             // 💡 현재 선택된 핫바 슬롯에 아이템이 있고, 그 아이템이 무기가 맞다면 장착!
             if (activeSlot != null && activeSlot.item is WeaponItemSO weaponItem)
@@ -230,7 +315,7 @@ public class InventoryManager : MonoBehaviour
     }
     private void HandleShiftClick(Inventory srcInventory, int clickedIndex)
     {
-        ItemStack srcSlot = srcInventory.slots[clickedIndex];
+        ItemStack srcSlot = srcInventory.GetAt(clickedIndex);
         if (srcSlot == null || srcSlot.item == null || srcSlot.amount <= 0) return;
 
         Inventory playerInv = playerController.playerInventory;
@@ -246,14 +331,14 @@ public class InventoryManager : MonoBehaviour
             if (srcInventory == openChestInv)
             {
                 // 상자에서 클릭함 ➡️ 플레이어의 '진짜 가방 영역(hotbarSize 이후)'으로 이동
-                TryMoveItemToRange(playerInv, hotbarSize, playerInv.slotCount - 1, srcSlot);
+                TryMoveItemToRange(playerInv, hotbarSize, playerInv.SlotCount - 1, srcSlot);
             }
             else if (srcInventory == playerInv)
             {
                 if (clickedIndex >= hotbarSize)
                 {
                     // 진짜 가방 영역에서 클릭함 ➡️ 상자 인벤토리로 이동
-                    TryMoveItemToRange(openChestInv, 0, openChestInv.slotCount - 1, srcSlot);
+                    TryMoveItemToRange(openChestInv, 0, openChestInv.SlotCount - 1, srcSlot);
                 }
                 else
                 {
@@ -270,7 +355,7 @@ public class InventoryManager : MonoBehaviour
                 if (clickedIndex >= 0 && clickedIndex < hotbarSize)
                 {
                     // 핫바에서 클릭함 ➡️ 가방 영역(hotbarSize ~ 끝)으로 이동
-                    TryMoveItemToRange(playerInv, hotbarSize, playerInv.slotCount - 1, srcSlot);
+                    TryMoveItemToRange(playerInv, hotbarSize, playerInv.SlotCount - 1, srcSlot);
                 }
                 else if (clickedIndex >= hotbarSize)
                 {
@@ -280,9 +365,10 @@ public class InventoryManager : MonoBehaviour
             }
         }
 
+        srcInventory.Touch();   // 이동 중 인플레이스 amount 수정 통지
         if (srcSlot.amount <= 0)
         {
-            srcInventory.slots[clickedIndex] = null;
+            srcInventory.TakeAt(clickedIndex);
         }
 
         RefreshAllGameUIs(playerInv);
@@ -296,9 +382,9 @@ public class InventoryManager : MonoBehaviour
         // 1단계: 기존에 '같은 아이템'이 담긴 슬롯이 있는지 찾아서 스택 합치기 (최대 64개 제한)
         for (int i = startIdx; i <= endIdx; i++)
         {
-            if (i >= targetInv.slots.Length) break;
+            if (i >= targetInv.SlotCount) break;
 
-            ItemStack targetSlot = targetInv.slots[i];
+            ItemStack targetSlot = targetInv.GetAt(i);
             if (targetSlot != null && targetSlot.item == srcSlot.item && targetSlot.amount < targetSlot.maxStackSize)
             {
                 int maxCanAdd = targetSlot.maxStackSize - targetSlot.amount;
@@ -306,6 +392,7 @@ public class InventoryManager : MonoBehaviour
 
                 targetSlot.amount += toAdd;
                 srcSlot.amount -= toAdd;
+                targetInv.Touch();
 
                 if (srcSlot.amount <= 0) return true; // 다 옮김!
             }
@@ -314,13 +401,13 @@ public class InventoryManager : MonoBehaviour
         // 2단계: 그래도 남은 아이템 개수가 있다면 '완전 빈 슬롯'을 찾아서 새로 안착시키기
         for (int i = startIdx; i <= endIdx; i++)
         {
-            if (i >= targetInv.slots.Length) break;
+            if (i >= targetInv.SlotCount) break;
 
-            ItemStack targetSlot = targetInv.slots[i];
+            ItemStack targetSlot = targetInv.GetAt(i);
             if (targetSlot == null || targetSlot.item == null)
             {
                 int toAdd = Mathf.Min(srcSlot.maxStackSize, srcSlot.amount);
-                targetInv.slots[i] = new ItemStack(srcSlot.item, toAdd);
+                if (!targetInv.TryPutAt(i, new ItemStack(srcSlot.item, toAdd))) continue; // 규칙 거절 시 다음 칸
                 srcSlot.amount -= toAdd;
 
                 if (srcSlot.amount <= 0) return true; // 다 옮김!

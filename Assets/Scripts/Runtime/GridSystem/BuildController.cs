@@ -67,7 +67,11 @@ public class BuildController : MonoBehaviour, IInputReceiver
                     Debug.Log("[BuildController] 밤에는 건설할 수 없습니다. (아침까지 대기 또는 H로 전환)");
                     return true; // 신호는 소비 — 사격 등으로 새지 않게
                 }
-                if (e.Id == InputActionId.ToggleBuild) placement.ToggleBuildMode();
+                if (e.Id == InputActionId.ToggleBuild)
+                {
+                    placement.ExitMode();               // 진행 중 모드 정리 후
+                    BuildMenuPopup.Toggle(placement);   // 카테고리별 빌드 메뉴 (선택 시 배치 모드 진입)
+                }
                 else placement.ToggleDemolishMode();
                 return true;
         }

@@ -10,38 +10,21 @@ public class InventoryProcessor : BaseProcessor
     // 플레이어 손제작은 보통 재료가 있는 만큼만 한 번 만들고 멈추므로 false
     protected override bool IsAutomation => false; 
 
+    // 구 slots 배열 순회 → 컨테이너 API로 이식 (Inventory가 ItemContainer 위임으로 재설계됨)
+
     protected override bool HasEnoughIngredients()
     {
         if (currentRecipe == null || inputInventory == null) return false;
 
         foreach (var input in currentRecipe.inputs)
-        {
-            int required = input.amount;
-            int total = 0;
-            foreach (var slot in inputInventory.slots)
-            {
-                if (slot != null && slot.item == input.item) total += slot.amount;
-            }
-            if (total < required) return false;
-        }
+            if (inputInventory.Container.CountOf(input.item) < input.amount) return false;
         return true;
     }
 
     protected override void ConsumeIngredients()
     {
         foreach (var input in currentRecipe.inputs)
-        {
-            int toRemove = input.amount;
-            for (int i = 0; i < inputInventory.slots.Length; i++)
-            {
-                var slot = inputInventory.slots[i];
-                if (slot != null && slot.item == input.item)
-                {
-                    if (slot.amount > toRemove) { slot.amount -= toRemove; break; }
-                    else { toRemove -= slot.amount; inputInventory.slots[i] = null; }
-                }
-            }
-        }
+            inputInventory.Container.TryConsume(input.item, input.amount);   // HasEnoughIngredients 선검사로 보장
     }
 
     protected override void GiveOutputs()

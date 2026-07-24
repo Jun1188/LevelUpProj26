@@ -19,3 +19,20 @@
 - **공용 쿼리로 공개** — 이후 기계 UI(E 상호작용) 등 "조준한 건물 찾기"는 전부 이 헬퍼로.
   상호작용 계열 현황: Interactable(E, 상자·아이템) / 철거(모드+좌클릭) / 전투(Entities.Building HP)
   — 프롬프트(PlayerInteractionManager)와 실행(TryInteract)의 레이캐스트 중복·마스크 불일치는 팀 협의 대기
+
+---
+
+## 2026-07-24 — 건물 SO 레지스트리 + 빌드 메뉴 자동 생성
+
+- **BuildingDatabaseSO** (Resources/BuildingDatabase) — 전체 건물 SO 레지스트리.
+  에디터 스캐너(Editor/BuildingDatabaseScanner)가 SO 생성/삭제/이동 시 자동 재수집
+  (카테고리 → displayName 정렬). 수동 연결 작업 소멸. 수동 재수집: Tools/Factory/Rebuild
+- **BuildingCategory 부활** (생산/물류/저장/방어) — UI 정렬이라는 실소비자가 생겨 재도입.
+  기존 6종 에셋에 카테고리 지정 완료
+- **PlacementSystem**: 수동 배열(buildingDataList) 제거 → 데이터베이스 참조
+  (미연결 시 Resources 폴백 — 씬 배선 불필요)
+- **BuildMenuPopup**: B키 → 카테고리별 버튼 자동 생성 팝업 (UIPopup 파이프라인 —
+  열림 중 사격/건설 차단, ESC/B로 닫기). 버튼 클릭 = SelectBuilding + 배치 모드 진입.
+  UI는 런타임 코드 조립 (씬 저작 0) — UI 담당이 프리팹로 교체 가능하게 표면 분리
+- Addressables는 보류 — 로컬 소량 데이터라 async·빌드 단계 비용만 생김.
+  DLC/스트리밍 필요 시 데이터베이스 인터페이스 뒤에서 교체 (소비자 무수정)

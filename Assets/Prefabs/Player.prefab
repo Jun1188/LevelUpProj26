@@ -2607,7 +2607,7 @@ MonoBehaviour:
   promptText: {fileID: 0}
   interactableLayers:
     serializedVersion: 2
-    m_Bits: 768
+    m_Bits: 8960
 --- !u!1 &7920431637011069521
 GameObject:
   m_ObjectHideFlags: 0

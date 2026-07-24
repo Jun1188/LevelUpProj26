@@ -45,7 +45,8 @@ public class InventoryPopup : UIPopup
 
     public override void Close()
     {
-        if (player != null) player.CloseInventory();   // 패널 SetActive(false)까지 수행
+        // 캐리지 드롭·상자 패널 정리·패널 SetActive(false)까지 수행
+        if (InventoryManager.Instance != null) InventoryManager.Instance.CloseScreen();
         else base.Close();
     }
 }

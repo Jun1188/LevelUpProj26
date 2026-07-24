@@ -36,9 +36,10 @@ public class PlayerController : MonoBehaviour, IInputReceiver
 
     [Header("Inventory Backend")]
     public Inventory playerInventory;
-    private bool isInventoryOpen = false;
 
     [Header("Inventory & HUD UI")]
+    // 화면 열닫 소유는 InventoryManager(OpenPlayerScreen/OpenContainerScreen/CloseScreen) —
+    // 아래 참조들은 그쪽에서 사용한다. UI 소유권 이관은 UI 담당과 협의 후
     public GameObject inventoryUIPanel;
     public InventoryUI inventoryUI;
     public InventoryUI chestInventoryUI;
@@ -47,6 +48,7 @@ public class PlayerController : MonoBehaviour, IInputReceiver
     private Vector2 moveInput;
     private Vector2 mouseInput;
     private bool isJumpPressed;
+    private PlayerInteractionManager interaction;   // 조준 판정 공유 (같은 GO에 부착)
 
     #endregion
 
@@ -77,7 +79,7 @@ public class PlayerController : MonoBehaviour, IInputReceiver
 
             // 열기만 담당 — 인벤이 열려 있으면 InventoryPopup(상위 우선순위)이 먼저 가로채 닫는다
             case InputActionId.ToggleInventory:
-                OpenPlayerInventory();
+                if (InventoryManager.Instance != null) InventoryManager.Instance.OpenPlayerScreen();
                 return true;
         }
         return false;
@@ -89,11 +91,15 @@ public class PlayerController : MonoBehaviour, IInputReceiver
 
     private void Start()
     {
-        CloseInventory();
         Cursor.lockState = CursorLockMode.Locked;   // 시작 시 패널이 이미 닫혀 있으면 팝업 Exit이 안 불리므로 직접 잠금
+        // (인벤 화면의 시작 닫힘 보장은 InventoryManager.Start의 CloseScreen이 담당)
 
         if (InputManager.Instance != null) InputManager.Instance.Register(this);
         else Debug.LogError("[PlayerController] 씬에 InputManager가 없습니다.", this);
+
+        interaction = GetComponent<PlayerInteractionManager>();
+        if (interaction == null)
+            Debug.LogWarning("[PlayerController] PlayerInteractionManager가 없어 E 상호작용이 비활성입니다.", this);
 
         if (InventoryManager.Instance != null && playerInventory != null)
         {
@@ -170,83 +176,21 @@ public class PlayerController : MonoBehaviour, IInputReceiver
 
     #region [5. Core Mechanics - Interaction]
 
-    /// <summary>조준 중인 Interactable에 상호작용 (E). 인벤 열림 중 E로 닫기는 InventoryPopup이 처리.</summary>
-    private void TryInteract()
-    {
-        Ray ray = new(playerCamera.position, playerCamera.forward);
-
-        if (Physics.Raycast(ray, out RaycastHit hit, 4f, LayerMask.GetMask("Interactable")))
-        {
-            Interactable interactable = hit.collider.GetComponentInParent<Interactable>();
-            if (interactable != null)
-            {
-                interactable.OnInteract(this);
-            }
-        }
-    }
+    /// <summary>
+    /// 조준 중인 대상에 상호작용 (E). 판정은 PlayerInteractionManager.Current를 그대로 사용 —
+    /// 프롬프트에 보이는 대상과 실행 대상이 항상 일치한다. 인벤 열림 중 E 닫기는 InventoryPopup이 처리.
+    /// </summary>
+    private void TryInteract() => interaction?.Current?.Interact(this);
 
     #endregion
 
-    #region [6. Core Mechanics - Inventory System Management]
-    // 열기/닫기가 파이프라인에서 분리 처리되므로 토글 API는 없다 —
-    // 열기: OnInput(ToggleInventory), 닫기: InventoryPopup → CloseInventory()
+    #region [6. Movement Support]
 
-    // 밤에는 인벤토리 사용 금지 (낮=건설/정비, 밤=전투). TimeManager 없는 씬은 항상 허용.
-    private static bool InventoryAllowed =>
-        TimeManager.Instance == null || TimeManager.Instance.IsBuildingAllowed;
+    // 인벤 화면 열기/닫기는 InventoryManager 소유 (마인크래프트식 — 타겟이 화면을 요청).
+    // 밤 인벤 금지(팀원 추가)도 그쪽 OpenScreen으로 이식됨. 여기엔 아바타 상태 조작만 남는다.
 
-    public void OpenPlayerInventory()
-    {
-        if (isInventoryOpen) return;
-        if (!InventoryAllowed)
-        {
-            Debug.Log("[PlayerController] 밤에는 인벤토리를 열 수 없습니다.");
-            return;
-        }
-        isInventoryOpen = true;
-        HaltMomentum();
-
-        if (inventoryUIPanel != null) inventoryUIPanel.SetActive(true);   // → InventoryPopup.OnEnable (UI 맵 Push + 커서/크로스헤어)
-        if (inventoryUI != null) inventoryUI.RefreshAllUI();
-    }
-
-    public void OpenTargetInventory(Inventory targetInventory)
-    {
-        if (!InventoryAllowed)
-        {
-            Debug.Log("[PlayerController] 밤에는 인벤토리를 열 수 없습니다.");
-            return;
-        }
-        isInventoryOpen = true;
-        HaltMomentum();
-
-        if (chestInventoryUI != null)
-        {
-            chestInventoryUI.inventory = targetInventory;
-            chestInventoryUI.gameObject.SetActive(true);
-            chestInventoryUI.RefreshAllUI();
-        }
-
-        if (inventoryUIPanel != null) inventoryUIPanel.SetActive(true);
-        if (inventoryUI != null) inventoryUI.RefreshAllUI();
-    }
-
-    public void CloseInventory()
-    {
-        // 인벤토리를 닫을 때 손에 든 아이템이 있다면 월드로 드롭!
-        if (InventoryManager.Instance != null)
-        {
-            InventoryManager.Instance.DropMouseCarriageItem();
-        }
-
-        isInventoryOpen = false;
-
-        if (inventoryUIPanel != null) inventoryUIPanel.SetActive(false);  // → InventoryPopup.OnDisable (UI 맵 Pop + 커서/크로스헤어)
-        if (chestInventoryUI != null) chestInventoryUI.gameObject.SetActive(false);
-    }
-
-    /// <summary>인벤을 여는 순간 수평 관성 제거 — 열림 중 이동 입력은 맵 비활성으로 이미 0</summary>
-    private void HaltMomentum()
+    /// <summary>화면이 열리는 순간 수평 관성 제거 — 열림 중 이동 입력은 맵 비활성으로 이미 0</summary>
+    public void HaltMomentum()
     {
         if (rb != null) rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
     }

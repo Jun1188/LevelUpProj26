@@ -93,16 +93,17 @@ public class HotbarController : MonoBehaviour, IInputReceiver
     {
         if (player == null || player.playerInventory == null) return;
         var inventory = player.playerInventory;
-        if (inventory.slots.Length <= currentHotbarIndex) return;
+        if (inventory.SlotCount <= currentHotbarIndex) return;
 
-        ItemStack slot = inventory.slots[currentHotbarIndex];
+        ItemStack slot = inventory.GetAt(currentHotbarIndex);
         if (slot == null || slot.item == null || slot.amount <= 0) return;
 
         Vector3 spawnPos = player.transform.position + player.playerCamera.forward * 1.5f + Vector3.up * 0.5f;
         DroppedItem.Spawn(slot.item, 1, spawnPos, player.playerCamera.forward);
 
         slot.amount--;
-        if (slot.amount <= 0) inventory.slots[currentHotbarIndex] = null;
+        inventory.Touch();
+        if (slot.amount <= 0) inventory.TakeAt(currentHotbarIndex);
 
         if (InventoryManager.Instance != null)
             InventoryManager.Instance.RefreshAllGameUIs(inventory);

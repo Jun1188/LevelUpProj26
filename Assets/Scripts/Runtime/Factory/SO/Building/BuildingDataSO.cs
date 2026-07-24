@@ -14,6 +14,31 @@ using UnityEngine;
 
 public enum Direction { North, East, South, West }
 
+/// <summary>
+/// 빌드 메뉴 분류 — BuildingDatabaseSO가 이 순서대로 그룹·정렬한다.
+/// (예전 YAGNI로 제거했던 카테고리의 부활 — 이제 UI 정렬이라는 실소비자가 있다)
+/// </summary>
+public enum BuildingCategory
+{
+    Production,   // 생산 — 채굴기, 조립기
+    Logistics,    // 물류 — 벨트, 분배기, 합류기
+    Storage,      // 저장 — 보관소
+    Defense,      // 방어 — 포탑 (밤 웨이브)
+}
+
+/// <summary>카테고리 표시명 — 빌드 메뉴·인스펙터가 공용.</summary>
+public static class BuildingCategoryNames
+{
+    public static string Korean(BuildingCategory c) => c switch
+    {
+        BuildingCategory.Production => "생산",
+        BuildingCategory.Logistics  => "물류",
+        BuildingCategory.Storage    => "저장",
+        BuildingCategory.Defense    => "방어",
+        _ => c.ToString(),
+    };
+}
+
 // ─── 방향 헬퍼 ─────────────────────────────────────────────────
 
 public static class Dir
@@ -85,6 +110,20 @@ public interface IBuildingBehavior
     void OnAfterPlaced();
 }
 
+/// <summary>
+/// 플레이어 상호작용(E)이 있는 행동만 추가로 구현하는 opt-in 인터페이스.
+/// 심 계약(IBuildingBehavior·Tick)과 분리된 뷰 이벤트 — 시나리오 테스트는 이것을 모른다.
+/// 조준 시 Entities.Building(IInteractable)이 여기로 위임한다.
+/// 새 상호작용 건물 추가 = 행동 클래스에 이 인터페이스 구현 (기존 코드 무수정).
+/// </summary>
+public interface IInteractiveBehavior
+{
+    /// <summary>조준 프롬프트. null/빈 문자열 = 지금은 상호작용 불가.</summary>
+    string InteractPrompt { get; }
+
+    void Interact(PlayerController player);
+}
+
 // ─── ScriptableObjects ──────────────────────────────────────────
 
 /// <summary>
@@ -98,6 +137,9 @@ public interface IBuildingBehavior
 public abstract class BuildingDataSO : GameDataSO
 {
     // 식별·표시(id/displayName/description/icon)는 GameDataSO가 담당
+
+    [Header("분류 — 빌드 메뉴 그룹")]
+    public BuildingCategory category = BuildingCategory.Production;
 
     [Header("프리팹")]
     public GameObject prefab;

@@ -17,6 +17,7 @@ MonoBehaviour:
   description: 
   icon: {fileID: 0}
   tags: []
+  category: 0
   prefab: {fileID: 8416679944086038086, guid: 687143ae40f3c5041a38fa275fc61709, type: 3}
   size: {x: 1, y: 1}
   ports:

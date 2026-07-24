@@ -43,7 +43,7 @@ public class InventorySlotUI : MonoBehaviour, IPointerClickHandler, IPointerEnte
     {
         if (inventoryUI == null || inventoryUI.inventory == null || ItemTooltipUI.Instance == null) return;
 
-        ItemStack currentStack = inventoryUI.inventory.slots[slotIndex];
+        ItemStack currentStack = inventoryUI.inventory.GetAt(slotIndex);
         if (currentStack != null && currentStack.item != null && currentStack.amount > 0)
         {
             // 백엔드에 아이템 데이터가 들어있다면 툴팁 켜기

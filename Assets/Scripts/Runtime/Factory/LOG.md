@@ -228,3 +228,15 @@
 - **FPS 겸용 조준**: 커서 잠금 상태(FPS 플레이)면 화면 중앙 크로스헤어로, 아니면 마우스 커서로 레이캐스트
 - **실사용 방어**: UI 위 클릭이 배치/철거로 새지 않게 `EventSystem.IsPointerOverGameObject` 가드, 지형 미조준 시 프리뷰 숨김, 벨트 프리뷰가 모양(T키)에 맞는 커브 메시로 교체되도록 수정
 - **주의**: 플레이어 핫바(숫자키)와 충돌하지 않도록 숫자키 바인딩은 넣지 않음 — 건물 선택은 UI/API 경유가 정석
+
+---
+
+## 2026-07-22 — BuildingView 제거 (팀 결정) — Entities.Building 직접 사용
+
+- 구 BuildingView는 Entities.Building 상속 후 `Building` 프로퍼티(→Sim)만 남은 빈 껍데기였음
+  → 삭제하고 전 참조를 `Entities.Building` + `.Sim`으로 교체
+- 영향 범위: FactoryBootstrap(뷰 매핑 타입), PlacementBridge(AddComponent + Sim 연결),
+  PlacementSystem.TryGetAimedBuilding(Sim 없는 코어는 철거 대상 제외), FactoryTest, Entities.Building.GetOrAttach 단순화
+- 프리팹/씬 참조 없음(런타임 부착 전용)이라 에셋 수정 불필요.
+  프리팹에 Entities.Building을 미리 붙이면(타워 canAttack 등) PlacementBridge가 그대로 사용
+- 이는 건물 상호작용(E키) 작업의 선행 정리 — 다음: Interactable 어댑터가 Entities.Building을 직접 참조

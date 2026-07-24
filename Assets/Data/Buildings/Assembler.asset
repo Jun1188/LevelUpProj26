@@ -16,6 +16,7 @@ MonoBehaviour:
   displayName: Assembler
   description: 
   icon: {fileID: 0}
+  category: 0
   prefab: {fileID: 5279508996628763662, guid: f21554090b8662041865fae8ac84acf4, type: 3}
   size: {x: 1, y: 1}
   ports:

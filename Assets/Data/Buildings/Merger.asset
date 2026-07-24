@@ -16,6 +16,7 @@ MonoBehaviour:
   displayName: Merger
   description: 
   icon: {fileID: 0}
+  category: 1
   prefab: {fileID: 7962463567319494330, guid: 326f8420de63f324fbe1a0df87f16c51, type: 3}
   size: {x: 1, y: 1}
   ports:

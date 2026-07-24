@@ -23,7 +23,8 @@ public class PlacementSystem : MonoBehaviour
     [Header("References")]
     [SerializeField] private Camera cam;
     [SerializeField] private LayerMask groundMask;
-    [SerializeField] private BuildingDataSO[] buildingDataList;
+    [Tooltip("건물 목록 — 비워두면 Resources의 BuildingDatabase를 자동 사용. 수동 배열 연결은 폐기됨.")]
+    [SerializeField] private BuildingDatabaseSO database;
 
     [Header("Grid")]
     [SerializeField] private float cellSize = 1f;
@@ -67,12 +68,17 @@ public class PlacementSystem : MonoBehaviour
     // ── 외부(UI) 조회용
     public BuildMode Mode => mode;
     public BuildingDataSO CurrentBuilding => current;
-    public IReadOnlyList<BuildingDataSO> Buildings => buildingDataList;
+    public IReadOnlyList<BuildingDataSO> Buildings =>
+        database != null ? database.buildings : System.Array.Empty<BuildingDataSO>();
+    public BuildingDatabaseSO Database => database;
 
     void Awake()
     {
         grid = new GridSystem(cellSize, gridOrigin);
         if (cam == null) cam = Camera.main;
+
+        if (database == null) database = BuildingDatabaseSO.LoadDefault();
+        if (database == null) Debug.LogError("[PlacementSystem] BuildingDatabase가 없습니다 (Resources/BuildingDatabase).", this);
     }
 
     void Update()
@@ -151,12 +157,13 @@ public class PlacementSystem : MonoBehaviour
         SpawnPreview();
     }
 
-    /// <summary>buildingDataList 인덱스로 선택 — 배치 UI의 버튼/단축키용.</summary>
+    /// <summary>데이터베이스 인덱스로 선택 — 단축키용 (메뉴 UI는 SelectBuilding을 직접 호출).</summary>
     public void SelectBuildingByIndex(int index)
     {
-        if (buildingDataList == null || index < 0 || index >= buildingDataList.Length) return;
+        var list = Buildings;
+        if (index < 0 || index >= list.Count) return;
         lastIndex = index;
-        SelectBuilding(buildingDataList[index]);
+        SelectBuilding(list[index]);
     }
 
     public void EnterDemolishMode()

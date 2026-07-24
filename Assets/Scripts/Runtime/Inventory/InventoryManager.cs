@@ -34,7 +34,7 @@ public class InventoryManager : MonoBehaviour
     // 밤에는 인벤토리 사용 금지 (낮=건설/정비, 밤=전투) — 팀원 추가 기능을 화면 소유자로 이식.
     // TimeManager 없는 씬은 항상 허용.
     private static bool InventoryAllowed =>
-        TimeManager.Instance == null || TimeManager.Instance.IsBuildingAllowed;
+        TimeManager.Instance == null || TimeManager.Instance.Cycle.Phase == DayPhase.Day;
 
     /// <summary>플레이어 가방만 열기 (I키).</summary>
     public void OpenPlayerScreen() => OpenScreen(null);

@@ -16,6 +16,7 @@ MonoBehaviour:
   displayName: Storage
   description: 
   icon: {fileID: 0}
+  category: 2
   prefab: {fileID: 5279508996628763662, guid: 935e9bd1c205c7044b36b398d51ffa2e, type: 3}
   size: {x: 1, y: 1}
   ports:

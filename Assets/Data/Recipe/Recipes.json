@@ -1,0 +1,25 @@
+[
+  {
+    "fileName": "Recipe_IronIngot",
+    "displayName": "철 주괴 제련",
+    "craftTime": 2.0,
+    "inputs": [
+      { "itemId": "IronOre", "amount": 2 },
+      { "itemId": "Coal", "amount": 1 }
+    ],
+    "outputs": [
+      { "itemId": "IronIngot", "amount": 1 }
+    ]
+  },
+  {
+    "fileName": "Recipe_IronGear",
+    "displayName": "철 기어 제작",
+    "craftTime": 3.0,
+    "inputs": [
+      { "itemId": "IronIngot", "amount": 2 }
+    ],
+    "outputs": [
+      { "itemId": "IronGear", "amount": 1 }
+    ]
+  }
+]

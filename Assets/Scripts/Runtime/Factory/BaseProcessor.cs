@@ -79,7 +79,8 @@ public abstract class BaseProcessor : MonoBehaviour
             RecipeDataSO finishedRecipe = currentRecipe;
             GiveOutputs();
             
-            // 🔔 "제작 완료!" 이벤트 발동 (상호작용 담당 팀원은 여기에 이펙트나 UI 갱신을 묶음)
+            Debug.Log($"<color=cyan>[{gameObject.name}] {currentRecipe.name} 생산 완료!</color>");
+            // "제작 완료!" 이벤트 발동 (상호작용 담당 팀원은 여기에 이펙트나 UI 갱신을 묶음)
             OnProductionCompleted?.Invoke(finishedRecipe); 
 
             progressNormalized = 0f;
@@ -88,7 +89,7 @@ public abstract class BaseProcessor : MonoBehaviour
         }
 
         isProcessing = false;
-        OnProductionStopped?.Invoke(); // 🔔 "최종 가동 종료" 이벤트 발동
+        OnProductionStopped?.Invoke(); // "최종 가동 종료" 이벤트 발동
     }
 
     protected abstract bool HasEnoughIngredients();
@@ -96,7 +97,7 @@ public abstract class BaseProcessor : MonoBehaviour
     protected abstract void GiveOutputs();
 
     // ====================================================================
-    // 📊 [다른 팀원용 정보 제공 포트] UI 슬라이더나 에임 정보창에 연동할 Getter
+    // [다른 팀원용 정보 제공 포트] UI 슬라이더나 에임 정보창에 연동할 Getter
     // ====================================================================
     public float GetProgress() => progressNormalized; // 현재 진행률 (0.0 ~ 1.0)
     public bool IsProcessing() => isProcessing;       // 현재 돌아가는 중인가?

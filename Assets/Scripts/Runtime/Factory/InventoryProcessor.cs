@@ -37,7 +37,7 @@ public class InventoryProcessor : BaseProcessor
                 var slot = inputInventory.slots[i];
                 if (slot != null && slot.item == input.item)
                 {
-                    if (slot.amount > toRemove) { slot.amount -= toRemove; toRemove = 0; break; }
+                    if (slot.amount > toRemove) { slot.amount -= toRemove; break; }
                     else { toRemove -= slot.amount; inputInventory.slots[i] = null; }
                 }
             }

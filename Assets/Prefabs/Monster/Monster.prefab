@@ -156,7 +156,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Monster
   moveSpeed: 5
-  deathDelay: 2
+  deathDelay: 0
   destroyOnDeath: 1
   health:
     maxHealth: 100
